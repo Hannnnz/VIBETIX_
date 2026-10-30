@@ -2,9 +2,13 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { TabsPage } from './tabs.page';
 
+/**
+ * NOTE: the 'tabs' prefix is already declared in app-routing.module.ts,
+ * so this module only declares what comes AFTER it.
+ */
 const routes: Routes = [
   {
-    path: 'tabs',
+    path: '',
     component: TabsPage,
     children: [
       {

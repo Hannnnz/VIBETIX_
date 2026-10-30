@@ -122,3 +122,16 @@
   &.dot-staff { background: #4facfe; }
   &.dot-customer { background: #2dd36f; }
 }
+
+.sign-up-link {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ion-color-step-300, #9d9db8);
+
+  a {
+    color: var(--ion-color-primary);
+    font-weight: 700;
+    text-decoration: none;
+  }
+}

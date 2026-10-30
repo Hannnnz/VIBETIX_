@@ -1,0 +1,68 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/login"></ion-back-button>
+    </ion-buttons>
+    <ion-title class="logo-title">VIBETIX</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="register-content">
+  <div class="reg-hero">
+    <span class="note n1">🎶</span>
+    <span class="note n2">✨</span>
+    <h1>Join VIBETIX</h1>
+    <p>Create your account and catch your<br />first live show in seconds.</p>
+  </div>
+
+  <div class="form-wrap glass">
+    <ion-item lines="none" class="field">
+      <ion-input
+        label="Full name"
+        labelPlacement="floating"
+        placeholder="Juan dela Cruz"
+        [(ngModel)]="name"
+      ></ion-input>
+    </ion-item>
+
+    <ion-item lines="none" class="field">
+      <ion-input
+        label="Email"
+        labelPlacement="floating"
+        type="email"
+        placeholder="you@gmail.com"
+        [(ngModel)]="email"
+      ></ion-input>
+    </ion-item>
+
+    <ion-item lines="none" class="field">
+      <ion-input
+        label="Password"
+        labelPlacement="floating"
+        type="password"
+        placeholder="••••••••"
+        [(ngModel)]="password"
+      ></ion-input>
+    </ion-item>
+
+    <ion-item lines="none" class="field">
+      <ion-input
+        label="Confirm password"
+        labelPlacement="floating"
+        type="password"
+        placeholder="••••••••"
+        [(ngModel)]="confirm"
+        (keyup.enter)="submit()"
+      ></ion-input>
+    </ion-item>
+
+    <ion-button expand="block" class="reg-btn" (click)="submit()">
+      Create account
+    </ion-button>
+
+    <p class="have-account">
+      Already have an account?
+      <ion-button fill="clear" size="small" routerLink="/login">Sign in</ion-button>
+    </p>
+  </div>
+</ion-content>

@@ -39,10 +39,18 @@ const USERS: AppUser[] = [
 export class AuthService {
   private session: Session | null = null;
 
-  /** Returns the session when the email/password match a hardcoded user. */
+  /** Accounts created on the Register screen (also in-memory only). */
+  private registered: AppUser[] = [];
+
+  private findUser(email: string): AppUser | undefined {
+    const normalized = email.trim().toLowerCase();
+    return [...USERS, ...this.registered].find((u) => u.email === normalized);
+  }
+
+  /** Returns the session when the email/password match a known user. */
   login(email: string, password: string): Session | null {
     const normalized = (email || '').trim().toLowerCase();
-    const found = USERS.find(
+    const found = [...USERS, ...this.registered].find(
       (u) => u.email === normalized && u.password === password
     );
     if (!found) {
@@ -54,6 +62,20 @@ export class AuthService {
       role: found.role,
     };
     return this.session;
+  }
+
+  /** Frontend-only sign up: new accounts join as customers and sign in instantly. */
+  register(name: string, email: string, password: string): Session | null {
+    if (this.findUser(email)) {
+      return null; // email already taken
+    }
+    this.registered.push({
+      email: email.trim().toLowerCase(),
+      password,
+      name: name.trim(),
+      role: 'customer',
+    });
+    return this.login(email, password);
   }
 
   logout(): void {

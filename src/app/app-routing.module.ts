@@ -8,6 +8,11 @@ const routes: Routes = [
     path: 'login',
     loadChildren: () => import('./login/login.module').then((m) => m.LoginPageModule),
   },
+  {
+    path: 'register',
+    loadChildren: () =>
+      import('./register/register.module').then((m) => m.RegisterPageModule),
+  },
   // Customer area (tabbed). Customer example: user@gmail.com
   {
     path: 'tabs',
