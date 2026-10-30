@@ -2,7 +2,7 @@
 create extension if not exists pgcrypto;
 
 create or replace function add_vibetix_user(
-  email text, password text, full_name text, role text
+  p_email text, p_password text, p_full_name text, p_role text
 )
 returns void
 language plpgsql security definer set search_path = public, auth
@@ -21,11 +21,11 @@ begin
     gen_random_uuid(),
     'authenticated',
     'authenticated',
-    lower(trim(email)),
-    crypt(password, gen_salt('bf')),
+    lower(trim(p_email)),
+    extensions.crypt(p_password, extensions.gen_salt('bf')),
     now(),
     '{"provider":"email","providers":["email"]}',
-    jsonb_build_object('full_name', full_name, 'role', role),
+    jsonb_build_object('full_name', p_full_name, 'role', p_role),
     now(), now(),
     '', '', '', ''
   )
@@ -40,7 +40,7 @@ begin
     id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at
   ) values (
     u_id::text, u_id, 'email', 'email',
-    jsonb_build_object('sub', u_id::text, 'email', lower(trim(email))),
+    jsonb_build_object('sub', u_id::text, 'email', lower(trim(p_email))),
     now(), now(), now()
   ) on conflict (provider_id, id) do nothing;
 
@@ -48,7 +48,7 @@ begin
   --   customer -> joined automatically (trigger does it)
   --   staff    -> joined = true so the dashboard opens right away
   --   admin    -> ONLY this function can grant admin (app signup can never)
-  if role in ('admin', 'staff') then
+  if p_role in ('admin', 'staff') then
     update public.profiles
       set role = case when role = 'admin' then 'admin'::text else 'staff'::text end,
           joined = true
@@ -61,3 +61,5 @@ $$;
 select add_vibetix_user('admin@gmail.com', 'admin123', 'Admin VIBETIX',  'admin');
 select add_vibetix_user('staff@gmail.com', 'staff123', 'Staff VIBETIX',  'staff');
 select add_vibetix_user('user@gmail.com',  'user123',  'Juan Customer',  'customer');
+
+
