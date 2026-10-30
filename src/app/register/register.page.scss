@@ -3,6 +3,70 @@
   --padding-end: 0;
 }
 
+/* Role selector */
+.role-label {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ion-color-step-300, #9a9a9a);
+  font-weight: 800;
+}
+
+.role-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.role-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--app-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ion-text-color);
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  ion-icon {
+    font-size: 22px;
+    color: var(--ion-color-step-300, #9a9a9a);
+    margin-bottom: 6px;
+  }
+
+  strong {
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  span {
+    font-size: 11px;
+    color: var(--ion-color-step-300, #9a9a9a);
+  }
+
+  &.selected {
+    border-color: var(--app-red);
+    background: rgba(229, 9, 20, 0.08);
+    box-shadow: 0 0 0 1px var(--app-red) inset;
+
+    ion-icon {
+      color: var(--app-red);
+    }
+  }
+}
+
+.role-hint {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: var(--ion-color-step-300, #9a9a9a);
+}
+
+
 .reg-hero {
   position: relative;
   padding: 40px 24px 8px;

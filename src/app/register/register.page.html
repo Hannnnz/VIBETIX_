@@ -16,6 +16,34 @@
   </div>
 
   <div class="form-wrap glass">
+    <!-- Role selector -->
+    <p class="role-label">Register as</p>
+    <div class="role-row">
+      <button
+        type="button"
+        class="role-btn"
+        [class.selected]="role === 'customer'"
+        (click)="role = 'customer'"
+      >
+        <ion-icon name="person-outline"></ion-icon>
+        <strong>Customer</strong>
+        <span>Buy concert tickets</span>
+      </button>
+      <button
+        type="button"
+        class="role-btn"
+        [class.selected]="role === 'staff'"
+        (click)="role = 'staff'"
+      >
+        <ion-icon name="scan-outline"></ion-icon>
+        <strong>Staff</strong>
+        <span>Scan tickets for events</span>
+      </button>
+    </div>
+    <p class="role-hint" *ngIf="role === 'staff'">
+      After signup you'll join a company using your admin's code. 🔑
+    </p>
+
     <ion-item lines="none" class="field">
       <ion-input
         label="Full name"

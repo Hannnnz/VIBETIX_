@@ -16,6 +16,9 @@ export class RegisterPage {
   password = '';
   confirm = '';
 
+  /** New: pick your account type. */
+  role: 'customer' | 'staff' = 'customer';
+
   constructor(
     private auth: AuthService,
     private router: Router,
@@ -42,9 +45,21 @@ export class RegisterPage {
       return;
     }
 
-    const session = this.auth.register(this.name, email, this.password);
+    const session = this.auth.register(this.name, email, this.password, this.role);
     if (!session) {
       this.toast('This email is already registered. Try signing in.');
+      return;
+    }
+
+    if (this.role === 'staff') {
+      const staffToast = await this.toastCtrl.create({
+        message: `Welcome, ${session.name}! One more step: join your company.`,
+        duration: 2400,
+        position: 'top',
+        color: 'success',
+      });
+      await staffToast.present();
+      this.router.navigateByUrl('/staff/join', { replaceUrl: true });
       return;
     }
 

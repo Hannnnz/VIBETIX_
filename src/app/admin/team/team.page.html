@@ -1,0 +1,85 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/account"></ion-back-button>
+    </ion-buttons>
+    <ion-title>My team</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <section class="wrap">
+
+    <!-- Company code card -->
+    <div class="code-card card-lg">
+      <p class="card-label">Company code — share with staff to let them join</p>
+      <div class="code-line">
+        <span class="code-value">{{ companyCode }}</span>
+        <div class="code-actions">
+          <ion-button fill="clear" size="small" (click)="copyCode()">
+            <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+          </ion-button>
+          <ion-button fill="clear" size="small" (click)="regenCode()">
+            <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
+          </ion-button>
+        </div>
+      </div>
+      <p class="fine">
+        Staff enter this on their Join company page — just like MS Teams.
+      </p>
+    </div>
+
+    <!-- New credentials modal card -->
+    <div class="cred-card card-lg" *ngIf="newCredentials">
+      <div class="cred-head">
+        <ion-icon name="checkmark-circle-outline"></ion-icon>
+        <strong>Staff account created</strong>
+      </div>
+      <p class="fine">Give these credentials to your staff member — shown only once:</p>
+      <div class="cred-line"><span>Email</span><strong>{{ newCredentials.email }}</strong></div>
+      <div class="cred-line"><span>Password</span><strong>{{ newCredentials.password }}</strong></div>
+      <ion-button expand="block" fill="outline" (click)="doneWithCredentials()">Got it</ion-button>
+    </div>
+
+    <!-- Staff list -->
+    <p class="section-label">Staff members ({{ staff.length }})</p>
+    <div class="member-card" *ngFor="let s of staff">
+      <div class="ava">{{ s.name.charAt(0) | uppercase }}</div>
+      <div class="info">
+        <h4>{{ s.name }}</h4>
+        <p>{{ s.email }}</p>
+      </div>
+      <span class="joined-chip" *ngIf="s.joined">Joined</span>
+      <span class="pending-chip" *ngIf="!s.joined">Pending</span>
+      <ion-button fill="clear" size="small" color="danger" (click)="removeStaff(s)">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    </div>
+
+    <div class="empty" *ngIf="staff.length === 0 && !adding">
+      <ion-icon name="people-outline"></ion-icon>
+      <p>No staff yet — add your first team member.</p>
+    </div>
+
+    <!-- Add staff panel -->
+    <div class="add-panel card-lg" *ngIf="adding">
+      <ion-item lines="none" class="field">
+        <ion-input label="Full name" labelPlacement="floating" [(ngModel)]="addName"></ion-input>
+      </ion-item>
+      <ion-item lines="none" class="field">
+        <ion-input label="Email" labelPlacement="floating" type="email" [(ngModel)]="addEmail"></ion-input>
+      </ion-item>
+      <ion-button expand="block" class="red-btn" (click)="createStaff()">
+        Create staff account
+      </ion-button>
+      <p class="fine">A password is generated automatically and shown once above list.</p>
+    </div>
+
+    <ion-button *ngIf="!adding && !newCredentials" expand="block" fill="outline" class="add-btn" (click)="toggleAdd()">
+      <ion-icon slot="start" name="person-add-outline"></ion-icon>
+      Add staff
+    </ion-button>
+    <ion-button *ngIf="adding" fill="clear" expand="block" (click)="toggleAdd()">Cancel</ion-button>
+
+  </section>
+</ion-content>

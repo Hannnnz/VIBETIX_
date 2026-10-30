@@ -48,6 +48,13 @@
   <ng-container *ngIf="step === 'select'">
     <div class="section-title"><span class="step">1</span><h3>Payment method</h3></div>
 
+    <p class="fine" *ngIf="noSavedMethods">
+      <ion-icon name="flash-outline"></ion-icon>
+      You have no saved payment methods — no problem! Pay
+      <strong>directly</strong> below with GCash, QR or Google Play,
+      or tap a saved method if you add one later in your Profile.
+    </p>
+
     <div class="method-list">
       <div class="method-row" *ngFor="let o of options" (click)="choose(o)">
         <div class="m-icon"><ion-icon [name]="o.icon"></ion-icon></div>

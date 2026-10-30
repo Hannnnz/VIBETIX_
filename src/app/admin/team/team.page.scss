@@ -1,0 +1,208 @@
+.wrap {
+  padding: 10px 16px 44px;
+}
+
+.card-lg {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  margin-bottom: 16px;
+}
+
+.card-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ion-color-step-400, #7a7a7a);
+  font-weight: 800;
+}
+
+/* Company code */
+.code-card {
+  border-color: rgba(229, 9, 20, 0.35);
+
+  .code-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .code-value {
+    padding: 10px 18px;
+    border-radius: 12px;
+    background: var(--app-red);
+    color: #fff;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    animation: pulseGlow 2.2s ease-in-out infinite;
+  }
+
+  .fine {
+    margin: 12px 0 0;
+    font-size: 11px;
+    color: var(--ion-color-step-400, #7a7a7a);
+  }
+}
+
+/* One-time credentials */
+.cred-card {
+  border-color: rgba(34, 197, 94, 0.4);
+
+  .cred-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-weight: 800;
+
+    ion-icon {
+      color: #22c55e;
+      font-size: 22px;
+    }
+  }
+
+  .cred-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--app-border);
+    font-size: 14px;
+
+    span {
+      color: var(--ion-color-step-300, #9a9a9a);
+      font-size: 12px;
+    }
+
+    strong {
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+  }
+
+  ion-button {
+    margin-top: 6px;
+  }
+}
+
+.section-label {
+  margin: 6px 2px 8px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ion-color-step-400, #7a7a7a);
+  font-weight: 800;
+}
+
+/* Staff member list */
+.member-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin: 10px 0;
+  border-radius: 14px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  animation: fadeUp 0.4s ease-out both;
+
+  .ava {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--app-red);
+    color: #fff;
+    font-weight: 900;
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+
+    h4 {
+      margin: 0 0 2px;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--ion-color-step-300, #9a9a9a);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .joined-chip,
+  .pending-chip {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .joined-chip {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+  }
+
+  .pending-chip {
+    background: rgba(234, 179, 8, 0.12);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+  }
+}
+
+.empty {
+  padding: 26px 0;
+  text-align: center;
+  color: var(--ion-color-step-300, #9a9a9a);
+
+  ion-icon {
+    font-size: 40px;
+  }
+}
+
+/* Add panel */
+.add-panel {
+  .field {
+    --background: transparent;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+
+  .red-btn {
+    margin-top: 6px;
+    height: 50px;
+    font-weight: 800;
+  }
+
+  .fine {
+    margin: 10px 0 0;
+    font-size: 11px;
+    color: var(--ion-color-step-400, #7a7a7a);
+  }
+}
+
+.add-btn {
+  height: 50px;
+  font-weight: 700;
+}

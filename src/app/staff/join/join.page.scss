@@ -1,0 +1,136 @@
+.join-content {
+  --background: radial-gradient(circle at 20% 0%, rgba(229, 9, 20, 0.12), transparent 45%), var(--app-bg, #0a0a0a);
+}
+
+.wrap {
+  padding: 30px 22px 40px;
+  min-height: 100%;
+}
+
+.hero {
+  text-align: center;
+
+  h2 {
+    margin: 18px 0 8px;
+    font-weight: 900;
+    font-size: 24px;
+  }
+
+  .sub {
+    margin: 0 auto 22px;
+    max-width: 320px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ion-color-step-300, #9a9a9a);
+
+    strong {
+      color: var(--ion-text-color);
+    }
+  }
+}
+
+.join-logo {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24px;
+  background: var(--app-red);
+  color: #fff;
+  box-shadow: 0 14px 40px rgba(229, 9, 20, 0.35);
+  animation: floaty 3.2s ease-in-out infinite;
+
+  ion-icon {
+    font-size: 40px;
+  }
+}
+
+.badge-ok {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, 0.12);
+  border: 1px solid rgba(229, 9, 20, 0.4);
+
+  ion-icon {
+    font-size: 44px;
+    color: var(--app-red);
+  }
+}
+
+.code-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  animation: fadeUp 0.45s ease-out both;
+
+  .code-field {
+    --background: transparent;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    margin-bottom: 14px;
+
+    ion-input {
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+  }
+
+  .red-btn {
+    height: 50px;
+    font-weight: 800;
+  }
+}
+
+.demo-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 18px 2px 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed var(--app-border);
+  text-align: left;
+
+  ion-icon {
+    font-size: 20px;
+    color: var(--ion-color-step-300, #9a9a9a);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .demo-body {
+    flex: 1;
+
+    strong {
+      font-size: 13px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    p {
+      margin: 0 0 6px;
+      font-size: 12px;
+      color: var(--ion-color-step-300, #9a9a9a);
+    }
+
+    .code-text {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: var(--app-red);
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: 2px;
+    }
+  }
+}

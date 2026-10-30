@@ -1,0 +1,70 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="leaveCompany()">
+        <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Join company</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="join-content">
+  <!-- Already joined -->
+  <section class="hero wrap" *ngIf="joined">
+    <div class="badge-ok">
+      <ion-icon name="checkmark-circle-outline"></ion-icon>
+    </div>
+    <h2>You're in the team! 🎉</h2>
+    <p class="sub">
+      Your staff account is already connected to the VIBETIX company.
+    </p>
+    <ion-button expand="block" class="red-btn" (click)="goDashboard()">
+      Go to dashboard
+    </ion-button>
+  </section>
+
+  <!-- Not joined: MS Teams-style code entry -->
+  <section class="hero wrap" *ngIf="!joined">
+    <div class="join-logo">
+      <ion-icon name="ticket-outline"></ion-icon>
+    </div>
+    <h2>Join your company</h2>
+    <p class="sub">
+      Enter the <strong>company code</strong> your admin gave you — just like
+      joining a team in MS Teams. This connects your scanner to their events.
+    </p>
+
+    <div class="code-card">
+      <ion-item lines="none" class="code-field">
+        <ion-input
+          label="Company code"
+          labelPlacement="floating"
+          placeholder="VIBETIX2026"
+          [value]="code"
+          (ionInput)="onInput($event)"
+          (keyup)="onEnterKey($event)"
+          autocapitalize="characters"
+          autocorrect="off"
+          spellcheck="false"
+        ></ion-input>
+      </ion-item>
+      <ion-button expand="block" class="red-btn" [disabled]="joining" (click)="enter()">
+        <ion-icon slot="start" name="people-outline"></ion-icon>
+        {{ joining ? 'Checking…' : 'Join company' }}
+      </ion-button>
+    </div>
+
+    <div class="demo-card" (click)="revealCode = !revealCode">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      <div class="demo-body">
+        <strong>Demo hint</strong>
+        <p *ngIf="!revealCode">Tap to reveal the demo company code.</p>
+        <ng-container *ngIf="revealCode">
+          <p>The current demo code:</p>
+          <span class="code-text">{{ auth.getCompanyCode() }}</span>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+</ion-content>

@@ -5,7 +5,7 @@ import { StaffTabsPage } from './staff-tabs.page';
 /**
  * The 'staff' prefix is declared in app-routing.module.ts,
  * so this module declares everything AFTER it:
- *   /staff/dashboard · /staff/scan · /staff/account
+ *   /staff/dashboard · /staff/scan · /staff/account · /staff/join
  */
 const routes: Routes = [
   {
@@ -26,6 +26,11 @@ const routes: Routes = [
         path: 'account',
         loadChildren: () =>
           import('../account/account.module').then((m) => m.AccountPageModule),
+      },
+      {
+        path: 'join',
+        loadChildren: () =>
+          import('../staff/join/join.module').then((m) => m.JoinPageModule),
       },
       {
         path: '',

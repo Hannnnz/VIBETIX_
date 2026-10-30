@@ -1,0 +1,131 @@
+import { Component } from '@angular/core';
+import { AlertController } from '@ionic/angular/lazy';
+import { ToastController } from '@ionic/angular/lazy';
+import { Router } from '@angular/router';
+
+import { AuthService, AppUser } from '../../services/auth.service';
+
+@Component({
+  selector: 'app-team',
+  templateUrl: './team.page.html',
+  styleUrls: ['./team.page.scss'],
+  standalone: false,
+})
+export class TeamPage {
+  staff: AppUser[] = [];
+  adding = false;
+
+  addName = '';
+  addEmail = '';
+
+  /** Shown once after creating the account — never displayed again. */
+  newCredentials: { email: string; password: string } | null = null;
+
+  constructor(
+    private auth: AuthService,
+    private alertCtrl: AlertController,
+    private toastCtrl: ToastController,
+    private router: Router
+  ) {}
+
+  ionViewWillEnter(): void {
+    this.refresh();
+  }
+
+  private refresh(): void {
+    this.staff = this.auth.staffAccounts();
+  }
+
+  get companyCode(): string {
+    return this.auth.getCompanyCode();
+  }
+
+  copyCode(): void {
+    navigator.clipboard?.writeText(this.companyCode).catch(() => {
+      /* clipboard optional — code is visible anyway */
+    });
+    this.toast('Company code copied.');
+  }
+
+  async regenCode(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Reset company code',
+      message:
+        'Staff who already joined stay in. New staff must use the new code to join.',
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Reset',
+          handler: () => {
+            this.auth.regenerateCompanyCode();
+            this.toast('New company code generated.');
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  toggleAdd(): void {
+    this.adding = !this.adding;
+    this.addName = '';
+    this.addEmail = '';
+    this.newCredentials = null;
+  }
+
+  createStaff(): void {
+    if (!this.addName.trim() || !this.addEmail.trim()) {
+      this.toast('Fill in both name and email.');
+      return;
+    }
+    const created = this.auth.addStaff(this.addName, this.addEmail);
+    if (!created) {
+      this.toast('That email is already registered. Use another one.');
+      return;
+    }
+    this.newCredentials = created;
+    this.adding = false;
+    this.addName = '';
+    this.addEmail = '';
+    this.refresh();
+    this.toast('Staff account created.');
+  }
+
+  async removeStaff(member: AppUser): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Remove staff',
+      message: `${member.name} (${member.email}) will lose access to the company.`,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Remove',
+          role: 'destructive',
+          handler: () => {
+            this.auth.removeStaff(member.email);
+            this.toast('Staff member removed.');
+            this.refresh();
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  doneWithCredentials(): void {
+    this.newCredentials = null;
+  }
+
+  back(): void {
+    this.router.navigate(['/admin/account']);
+  }
+
+  private async toast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2200,
+      position: 'top',
+      color: 'dark',
+    });
+    await toast.present();
+  }
+}

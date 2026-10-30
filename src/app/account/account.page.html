@@ -10,11 +10,64 @@
     <h2>{{ session?.name }}</h2>
     <p>{{ session?.email }}</p>
     <ion-chip class="role-chip" [class.admin]="session?.role === 'admin'">
-      {{ session?.role }}
+      {{ roleLabels[session?.role ?? 'customer'] }}
     </ion-chip>
   </div>
 
-  <ion-list inset lines="full" class="pm-list">
+  <!-- Account information (ALL roles) -->
+  <ion-list inset lines="full" class="info-list">
+    <p class="pm-title with-pad">Account information</p>
+
+    <ion-item>
+      <ion-icon slot="start" name="person-outline"></ion-icon>
+      <ion-label>Full name</ion-label>
+      <ion-note slot="end">{{ session?.name }}</ion-note>
+    </ion-item>
+    <ion-item>
+      <ion-icon slot="start" name="mail-outline"></ion-icon>
+      <ion-label>Email</ion-label>
+      <ion-note slot="end">{{ session?.email }}</ion-note>
+    </ion-item>
+    <ion-item>
+      <ion-icon slot="start" name="shield-checkmark-outline"></ion-icon>
+      <ion-label>Role</ion-label>
+      <ion-note slot="end">{{ roleLabels[session?.role ?? 'customer'] }}</ion-note>
+    </ion-item>
+  </ion-list>
+
+  <!-- Staff: company status -->
+  <ion-list inset lines="full" class="info-list" *ngIf="isStaff">
+    <p class="pm-title with-pad">Company</p>
+    <ion-item>
+      <ion-icon slot="start" name="business-outline"></ion-icon>
+      <ion-label>Team</ion-label>
+      <ion-note slot="end" [class.joined]="staffJoined">
+        {{ staffJoined ? 'Joined · VIBETIX' : 'Not joined' }}
+      </ion-note>
+    </ion-item>
+    <ion-item *ngIf="!staffJoined" button detail (click)="joinCompany()">
+      <ion-icon slot="start" name="key-outline"></ion-icon>
+      <ion-label>Join company with code</ion-label>
+    </ion-item>
+  </ion-list>
+
+  <!-- Admin: team link + company code -->
+  <ion-list inset lines="full" class="info-list" *ngIf="isAdmin">
+    <p class="pm-title with-pad">Team management</p>
+    <ion-item button detail (click)="manageTeam()">
+      <ion-icon slot="start" name="people-outline"></ion-icon>
+      <ion-label>My team</ion-label>
+      <ion-note slot="end">{{ auth.staffAccounts().length }} staff</ion-note>
+    </ion-item>
+    <ion-item>
+      <ion-icon slot="start" name="key-outline"></ion-icon>
+      <ion-label>Company code</ion-label>
+      <ion-note slot="end" class="code-note">{{ auth.getCompanyCode() }}</ion-note>
+    </ion-item>
+  </ion-list>
+
+  <!-- Customer: payment methods -->
+  <ion-list inset lines="full" class="pm-list" *ngIf="isCustomer">
     <div class="pm-head">
       <p class="pm-title">Payment methods ({{ methods.length }})</p>
       <ion-button fill="clear" size="small" (click)="manageMethods()">
@@ -28,13 +81,13 @@
       </div>
       <div class="pm-text">
         <span class="pm-label">{{ m.label }}</span>
-        <small>{{ m.detail }}</small>
+        <small>{{ m.detail }}<ng-container *ngIf="m.meta"> · {{ m.meta }}</ng-container></small>
       </div>
       <ion-icon class="pm-chev" name="chevron-forward-outline"></ion-icon>
     </div>
 
     <div class="pm-empty" *ngIf="methods.length === 0">
-      <p>No payment method saved yet.</p>
+      <p>No payment method saved yet — GCash, QR and Google Play still work directly at checkout.</p>
       <ion-button fill="clear" size="small" (click)="manageMethods()">
         Add one now
       </ion-button>

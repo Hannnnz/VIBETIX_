@@ -21,8 +21,14 @@ export class AccountPage {
     play: 'logo-google-play',
   };
 
+  readonly roleLabels: Record<string, string> = {
+    admin: 'Administrator',
+    staff: 'Event Staff',
+    customer: 'Customer',
+  };
+
   constructor(
-    private auth: AuthService,
+    public auth: AuthService,
     private paymentService: PaymentService,
     private router: Router,
     private alertCtrl: AlertController
@@ -39,8 +45,38 @@ export class AccountPage {
       : [];
   }
 
+  get isCustomer(): boolean {
+    return this.session?.role === 'customer';
+  }
+
+  get isStaff(): boolean {
+    return this.session?.role === 'staff';
+  }
+
+  get isAdmin(): boolean {
+    return this.session?.role === 'admin';
+  }
+
+  get staffJoined(): boolean {
+    return this.auth.isStaffJoined();
+  }
+
   manageMethods(): void {
     this.router.navigate(['/tabs/payment-methods']);
+  }
+
+  joinCompany(): void {
+    this.router.navigate(['/staff/join']);
+  }
+
+  manageTeam(): void {
+    this.router.navigate(['/admin/team']);
+  }
+
+  dashboard(): void {
+    if (this.isAdmin) {
+      this.router.navigate(['/admin/dashboard']);
+    }
   }
 
   initials(): string {

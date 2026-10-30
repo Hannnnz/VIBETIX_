@@ -125,6 +125,11 @@ export class PaymentPage {
     return this.unitPrice * this.seats.length;
   }
 
+  /** True when the profile has no saved payment methods (option B messaging). */
+  get noSavedMethods(): boolean {
+    return !this.options.some((o) => o.key.startsWith('saved:'));
+  }
+
   dateLabel(date: string): string {
     return new Date(date).toLocaleDateString('en-US', {
       month: 'short',

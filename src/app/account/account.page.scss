@@ -119,6 +119,22 @@
   font-size: 12px;
 }
 
+/* Account information section */
+.pm-title.with-pad {
+  padding: 8px 16px 0;
+}
+
+ion-note.joined {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.code-note {
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--app-red) !important;
+}
+
 .footnote {
   padding: 16px 24px;
   text-align: center;
