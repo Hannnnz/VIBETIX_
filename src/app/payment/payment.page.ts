@@ -5,6 +5,7 @@ import { ToastController } from '@ionic/angular/lazy';
 import { Concert, ConcertService } from '../services/concert.service';
 import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
+import { RecommendService } from '../services/recommend.service';
 import { PaymentService, SavedMethod, passesLuhn, onlyDigits, maskCardTail, maskPhone, MERCHANT } from '../services/payment.service';
 
 type OptionKey = string; // 'saved:<id>' | 'gcash' | 'qr' | 'play'
@@ -61,37 +62,67 @@ export class PaymentPage {
     private bookingService: BookingService,
     public auth: AuthService,
     private paymentService: PaymentService,
+    private recommend: RecommendService,
     private toastCtrl: ToastController
-  ) {}
+  ) {
+    // Failsafe: the method list must never be empty, even if the
+    // lifecycle below is interrupted before options are assigned.
+    this.refreshOptions();
+  }
 
   ionViewWillEnter(): void {
-    const id = this.route.snapshot.queryParamMap.get('id') ?? '';
-    this.concert = this.concertService.getById(id);
-    this.tierName = this.route.snapshot.queryParamMap.get('tier') ?? '';
-    this.unitPrice = Number(this.route.snapshot.queryParamMap.get('price') ?? 0);
-    this.seats = (this.route.snapshot.queryParamMap.get('seats') ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    try {
+      const id = this.route.snapshot.queryParamMap.get('id') ?? '';
+      this.concert = this.concertService.getById(id);
+      this.tierName = this.route.snapshot.queryParamMap.get('tier') ?? '';
+      this.unitPrice = Number(this.route.snapshot.queryParamMap.get('price') ?? 0);
+      this.seats = (this.route.snapshot.queryParamMap.get('seats') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    } catch {
+      /* keep previous values — page stays usable */
+    }
 
-    const email = this.auth.getSession()?.email ?? '';
-    const savedMethods = this.paymentService.getMethods(email);
+    this.refreshOptions();
 
+    this.step = 'select';
+    this.selected = null;
+    this.qrChecked = false;
+    this.gcashOpened = false;
+  }
+
+  /**
+   * Builds the payment option list: saved methods first (option A),
+   * then direct channels — GCash app, QR code, Google Play (option B).
+   * Always succeeds, so GCash / QR / Play are ALWAYS available even
+   * with zero saved payment methods in the profile.
+   */
+  refreshOptions(): void {
     const kindIcon: Record<string, string> = {
       gcash: 'phone-portrait-outline',
       card: 'card-outline',
       play: 'logo-google-play',
     };
 
-    this.options = [
-      ...savedMethods.map((m) => ({
+    let saved: PayOption[] = [];
+    try {
+      const email = this.auth.getSession()?.email ?? '';
+      const savedMethods = email ? this.paymentService.getMethods(email) : [];
+      saved = savedMethods.map((m) => ({
         key: 'saved:' + m.id,
         kind: m.kind as 'gcash' | 'card',
         name: m.label,
         sub: `${m.detail}${m.meta ? ' · ' + m.meta : ''}`,
         icon: kindIcon[m.kind] ?? 'card-outline',
         badge: 'Saved',
-      })),
+      }));
+    } catch {
+      saved = []; // saved methods are optional — direct channels always follow
+    }
+
+    this.options = [
+      ...saved,
       {
         key: 'gcash',
         kind: 'gcash',
@@ -114,11 +145,6 @@ export class PaymentPage {
         icon: 'logo-google-play',
       },
     ];
-
-    this.step = 'select';
-    this.selected = null;
-    this.qrChecked = false;
-    this.gcashOpened = false;
   }
 
   total(): number {
@@ -144,6 +170,10 @@ export class PaymentPage {
     }
     this.selected = option;
     this.step = 'pay';
+  }
+
+  trackOption(index: number, option: PayOption): string {
+    return option.key;
   }
 
   backToSelect(): void {
@@ -273,6 +303,8 @@ export class PaymentPage {
             session,
             paidVia
           );
+          // 🎟 strongest taste signal — future Explore order adapts.
+          this.recommend.recordPurchase(this.concert!);
           this.lastCode = booking.ticketCode;
           this.step = 'success';
         });

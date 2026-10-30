@@ -56,7 +56,7 @@
     </p>
 
     <div class="method-list">
-      <div class="method-row" *ngFor="let o of options" (click)="choose(o)">
+      <div class="method-row" *ngFor="let o of options; trackBy: trackOption" (click)="choose(o)">
         <div class="m-icon"><ion-icon [name]="o.icon"></ion-icon></div>
         <div class="m-info">
           <h4>{{ o.name }}</h4>

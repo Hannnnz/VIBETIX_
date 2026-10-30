@@ -1,6 +1,91 @@
+/* ── Recommendation UI ─────────────────────────────────────────── */
+
+.foryou-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 16px 0;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(229, 9, 20, 0.14);
+  border: 1px solid rgba(229, 9, 20, 0.4);
+  animation: fadeUp 0.45s ease-out both;
+
+  ion-icon {
+    font-size: 14px;
+    color: var(--app-red);
+  }
+}
+
+.love-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+  transition: transform 0.15s ease, background 0.2s ease;
+
+  ion-icon {
+    font-size: 20px;
+    color: #fff;
+    transition: color 0.2s ease;
+  }
+
+  &.loved {
+    background: var(--app-red);
+    border-color: var(--app-red);
+
+    ion-icon {
+      color: #fff;
+      animation: popIn 0.35s ease-out both;
+    }
+  }
+
+  &:active {
+    transform: scale(0.85);
+  }
+}
+
+.top-pick-badge {
+  position: absolute;
+  top: 16px;
+  left: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--app-red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px rgba(229, 9, 20, 0.4);
+
+  ion-icon {
+    font-size: 12px;
+  }
+}
+
+.concert-card.top-pick {
+  border: 1px solid rgba(229, 9, 20, 0.55);
+}
+
 .promo {
-  position: relative;
-  overflow: hidden;
+  position: relative;  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;

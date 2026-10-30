@@ -19,10 +19,16 @@
     <span class="live-dot"></span>
   </div>
 
+  <div class="foryou-chip" *ngIf="personalized">
+    <ion-icon name="sparkles-outline"></ion-icon>
+    Recommended for you — based on your ♥ and views
+  </div>
+
   <section class="cards">
     <ion-card
       class="concert-card"
-      *ngFor="let c of filtered()"
+      [class.top-pick]="i === 0 && personalized"
+      *ngFor="let c of filtered(); let i = index"
       (click)="open(c)"
       button
     >
@@ -30,6 +36,20 @@
         <img *ngIf="c.imageUrl" class="cover-img" [src]="c.imageUrl" alt="" />
         <span class="cover-emoji" *ngIf="!c.imageUrl">{{ c.emoji }}</span>
         <span class="cover-date">{{ dateLabel(c.date) }} · {{ c.time }}</span>
+
+        <button
+          type="button"
+          class="love-btn"
+          [class.loved]="isLoved(c)"
+          (click)="toggleLove(c, $event)"
+          aria-label="Love this artist"
+        >
+          <ion-icon [name]="isLoved(c) ? 'heart' : 'heart-outline'"></ion-icon>
+        </button>
+
+        <span class="top-pick-badge" *ngIf="i === 0 && personalized">
+          <ion-icon name="sparkles-outline"></ion-icon> Top pick
+        </span>
       </div>
 
       <ion-card-header>
