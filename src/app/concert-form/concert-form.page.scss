@@ -1,0 +1,56 @@
+.form {
+  padding: 8px 16px 40px;
+}
+
+.field {
+  --background: var(--app-surface);
+  border-radius: 12px;
+  margin: 10px 0;
+}
+
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.emoji-picker {
+  margin: 16px 2px 0;
+
+  .picker-label {
+    margin: 0 0 8px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ion-color-step-300, #9d9db8);
+  }
+
+  .emoji-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .emoji-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    background: var(--app-surface);
+
+    &.selected {
+      border-color: var(--ion-color-primary);
+      box-shadow: 0 0 0 2px rgba(123, 91, 255, 0.3);
+    }
+  }
+}
+
+.save-btn {
+  margin-top: 20px;
+  height: 50px;
+  font-weight: 800;
+}

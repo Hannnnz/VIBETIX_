@@ -1,0 +1,39 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Profile</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="profile-hero">
+    <div class="avatar">{{ initials() }}</div>
+    <h2>{{ session?.name }}</h2>
+    <p>{{ session?.email }}</p>
+    <ion-chip class="role-chip" [class.admin]="session?.role === 'admin'">
+      {{ session?.role }}
+    </ion-chip>
+  </div>
+
+  <ion-list inset lines="full">
+    <ion-item>
+      <ion-icon slot="start" name="information-circle-outline"></ion-icon>
+      <ion-label>App version</ion-label>
+      <ion-note slot="end">1.0.0</ion-note>
+    </ion-item>
+    <ion-item>
+      <ion-icon slot="start" name="musical-notes-outline"></ion-icon>
+      <ion-label>VIBETIX · Concert ticketing</ion-label>
+    </ion-item>
+  </ion-list>
+
+  <ion-list inset lines="full">
+    <ion-item button detail (click)="logout()">
+      <ion-icon slot="start" name="log-out-outline"></ion-icon>
+      <ion-label>Sign out</ion-label>
+    </ion-item>
+  </ion-list>
+
+  <p class="footnote">
+    Sign in with any test account from the login screen to try other roles.
+  </p>
+</ion-content>

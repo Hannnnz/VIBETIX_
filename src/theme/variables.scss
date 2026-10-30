@@ -1,2 +1,41 @@
 // For information on how to create your own theme, please refer to:
 // https://ionicframework.com/docs/theming/
+
+/* =========================================================
+   VIBETIX theme — dark, neon-purple concert vibe
+   ========================================================= */
+
+:root {
+  /* Primary — electric purple */
+  --ion-color-primary: #7b5bff;
+  --ion-color-primary-rgb: 123, 91, 255;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #6c50e0;
+  --ion-color-primary-tint: #887bff;
+
+  /* App always runs in dark "stage light" mode */
+  --ion-background-color: #0b0b1a;
+  --ion-background-color-rgb: 11, 11, 26;
+  --ion-text-color: #f2f2fa;
+  --ion-text-color-rgb: 242, 242, 250;
+
+  --ion-toolbar-background: #0b0b1a;
+  --ion-card-background: #161634;
+  --ion-item-background: #161634;
+  --ion-tab-bar-background: #10102b;
+  --ion-border-color: #2a2a4a;
+
+  /* App-specific custom tokens */
+  --app-surface: #161634;
+  --app-border: #2a2a4a;
+}
+
+/* Neutral grays used by Ionic for step colors on dark backgrounds */
+:root {
+  --ion-color-step-100: #1c1c2f;
+  --ion-color-step-200: #b9b9ce;
+  --ion-color-step-300: #9d9db8;
+  --ion-color-step-400: #8082a2;
+  --ion-color-step-500: #63688c;
+}

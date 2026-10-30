@@ -1,0 +1,52 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-title class="logo-title">VIBETIX</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="login-content">
+  <div class="login-hero">
+    <h1>VIBETIX</h1>
+    <p>Feel the beat.<br />Book the seat.</p>
+  </div>
+
+  <div class="form-wrap">
+    <ion-item lines="none" class="field">
+      <ion-input
+        label="Email"
+        labelPlacement="floating"
+        type="email"
+        placeholder="you@gmail.com"
+        [(ngModel)]="email"
+      ></ion-input>
+    </ion-item>
+
+    <ion-item lines="none" class="field">
+      <ion-input
+        label="Password"
+        labelPlacement="floating"
+        type="password"
+        placeholder="••••••••"
+        [(ngModel)]="password"
+        (keyup.enter)="login()"
+      ></ion-input>
+    </ion-item>
+
+    <ion-button expand="block" class="login-btn" (click)="login()">
+      Sign in
+    </ion-button>
+
+    <div class="quick-accounts">
+      <p class="quick-label">Quick sign-in · test accounts</p>
+      <div class="chips">
+        <ion-chip
+          *ngFor="let acc of testAccounts"
+          (click)="quickFill(acc.email, acc.password)"
+        >
+          <span class="dot" [class]="acc.dot"></span>
+          <ion-label>{{ acc.label }}</ion-label>
+        </ion-chip>
+      </div>
+    </div>
+  </div>
+</ion-content>

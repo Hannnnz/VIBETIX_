@@ -1,0 +1,84 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title><span class="console-tag">STAFF CONSOLE</span></ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="logout()">
+        <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Search ticket code or customer"
+      [(ngModel)]="search"
+    ></ion-searchbar>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="stats">
+    <div class="stat">
+      <span class="num">{{ stats().bookings }}</span>
+      <span class="lbl">Bookings</span>
+    </div>
+    <div class="stat">
+      <span class="num">{{ stats().tickets }}</span>
+      <span class="lbl">Tickets sold</span>
+    </div>
+    <div class="stat">
+      <span class="num">{{ stats().checkedIn }}</span>
+      <span class="lbl">Checked in</span>
+    </div>
+  </div>
+
+  <section class="list">
+    <ion-card class="booking-card" *ngFor="let b of filtered()">
+      <ion-card-content class="booking-body">
+        <div class="row-top">
+          <span class="code">
+            <ion-icon name="ticket-outline"></ion-icon>
+            {{ b.ticketCode }}
+          </span>
+          <ion-chip
+            class="status-chip"
+            [class.checked]="b.status === 'checked-in'"
+          >
+            {{ b.status === 'checked-in' ? 'Checked in' : 'Valid' }}
+          </ion-chip>
+        </div>
+
+        <div class="row-mid">
+          <h3>{{ concertOf(b)?.name ?? 'Concert removed' }}</h3>
+          <p>
+            {{ dateLabel(concertOf(b)?.date ?? b.createdAt) }}
+            · {{ concertOf(b)?.time }}
+            · {{ concertOf(b)?.venue }}
+          </p>
+        </div>
+
+        <div class="row-bottom">
+          <div class="customer">
+            <span>{{ b.customerName }}</span>
+            <small>{{ b.customerEmail }}</small>
+          </div>
+          <div class="side">
+            <span class="qty">{{ b.quantity }} ticket{{ b.quantity > 1 ? 's' : '' }}
+              · {{ b.total | currency: 'PHP' : 'symbol-narrow' }}</span>
+            <ion-button
+              size="small"
+              [disabled]="b.status === 'checked-in'"
+              (click)="checkIn(b)"
+            >
+              {{ b.status === 'checked-in' ? 'Done' : 'Check in' }}
+            </ion-button>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="empty" *ngIf="filtered().length === 0">
+      <ion-icon name="reader-outline"></ion-icon>
+      <p>No bookings match "{{ search }}".</p>
+    </div>
+  </section>
+</ion-content>

@@ -1,0 +1,142 @@
+.console-tag {
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: #7fc4ff;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 8px 16px;
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 14px 6px;
+    border-radius: 14px;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+
+    .num {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--ion-color-primary);
+    }
+
+    .lbl {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ion-color-step-300, #9d9db8);
+    }
+  }
+}
+
+.list {
+  padding: 8px 16px 32px;
+}
+
+.booking-card {
+  margin: 12px 0;
+  border-radius: 16px;
+  padding: 0;
+  background: var(--app-surface);
+}
+
+.booking-body {
+  padding: 14px 16px;
+  background: transparent;
+}
+
+.row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .code {
+    font-family: 'Courier New', monospace;
+    font-weight: 800;
+    letter-spacing: 2px;
+
+    ion-icon {
+      vertical-align: -2px;
+      margin-right: 2px;
+      color: var(--ion-color-primary);
+    }
+  }
+}
+
+.status-chip {
+  margin: 0;
+  min-height: 22px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(123, 91, 255, 0.18);
+  --color: #b7a6ff;
+
+  &.checked {
+    background: rgba(45, 211, 111, 0.16);
+    --color: #4ddc94;
+  }
+}
+
+.row-mid {
+  margin: 10px 0;
+
+  h3 {
+    margin: 0 0 2px;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--ion-color-step-300, #9d9db8);
+  }
+}
+
+.row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  .customer {
+    display: flex;
+    flex-direction: column;
+
+    span {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    small {
+      color: var(--ion-color-step-300, #9d9db8);
+    }
+  }
+
+  .side {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .qty {
+      font-size: 12px;
+      color: var(--ion-color-step-200, #b9b9ce);
+    }
+  }
+}
+
+.empty {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--ion-color-step-300, #9d9db8);
+
+  ion-icon {
+    font-size: 46px;
+  }
+}

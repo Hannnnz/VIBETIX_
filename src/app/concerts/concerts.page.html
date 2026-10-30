@@ -1,0 +1,59 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title class="logo-title">VIBETIX</ion-title>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Search artists, venues, genres"
+      [(ngModel)]="search"
+    ></ion-searchbar>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="promo">
+    <div>
+      <p class="promo-small">Now trending in 2026</p>
+      <h2>Book live music, anytime.</h2>
+    </div>
+    <span class="promo-emoji">🎶</span>
+  </div>
+
+  <section class="cards">
+    <ion-card
+      class="concert-card"
+      *ngFor="let c of filtered()"
+      (click)="open(c)"
+      button
+    >
+      <div class="cover" [class]="'cover g' + c.color">
+        <span class="cover-emoji">{{ c.emoji }}</span>
+        <span class="cover-date">{{ dateLabel(c.date) }} · {{ c.time }}</span>
+      </div>
+
+      <ion-card-header>
+        <ion-card-title>{{ c.name }}</ion-card-title>
+        <ion-card-subtitle>{{ c.artist }} · {{ c.genre }}</ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <div class="meta">
+          <ion-icon name="location-outline"></ion-icon>
+          <span>{{ c.venue }}</span>
+        </div>
+        <div class="price-row">
+          <span class="price">{{ c.price | currency: 'PHP' : 'symbol-narrow' }}</span>
+          <span class="cta">
+            Buy ticket
+            <ion-icon name="arrow-forward-outline"></ion-icon>
+          </span>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="empty" *ngIf="filtered().length === 0">
+      <ion-icon name="search-outline"></ion-icon>
+      <p>No concerts found for "{{ search }}".</p>
+    </div>
+  </section>
+</ion-content>

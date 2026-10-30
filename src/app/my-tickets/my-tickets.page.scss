@@ -1,0 +1,123 @@
+.tickets {
+  padding: 10px 16px 32px;
+}
+
+.ticket-card {
+  display: flex;
+  margin: 14px 0;
+  border-radius: 18px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--app-surface);
+
+  .ticket-side {
+    width: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px dashed var(--app-border);
+
+    .side-emoji {
+      font-size: 28px;
+    }
+  }
+
+  .ticket-main {
+    flex: 1;
+    padding: 14px 16px;
+    min-width: 0;
+
+    .top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+
+      h3 {
+        margin: 0 0 2px;
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--ion-color-step-300, #9d9db8);
+      }
+    }
+
+    .status-chip {
+      flex-shrink: 0;
+      margin: 0;
+      min-height: 22px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(123, 91, 255, 0.18);
+      --color: #b7a6ff;
+
+      &.checked {
+        background: rgba(45, 211, 111, 0.16);
+        --color: #4ddc94;
+      }
+    }
+
+    .code-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 12px 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px dashed var(--app-border);
+      background: rgba(123, 91, 255, 0.06);
+
+      .code {
+        font-family: 'Courier New', monospace;
+        font-weight: 800;
+        letter-spacing: 2px;
+      }
+
+      .qty {
+        font-size: 12px;
+        color: var(--ion-color-step-300, #9d9db8);
+      }
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--ion-color-step-300, #9d9db8);
+
+      ion-icon {
+        vertical-align: -3px;
+      }
+
+      .price {
+        font-weight: 800;
+        color: var(--ion-text-color);
+      }
+    }
+  }
+}
+
+.empty {
+  padding: 70px 0;
+  text-align: center;
+  color: var(--ion-color-step-300, #9d9db8);
+
+  ion-icon {
+    font-size: 52px;
+  }
+
+  h3 {
+    margin: 10px 0 4px;
+    color: var(--ion-text-color);
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0 0 16px;
+  }
+}

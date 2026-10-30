@@ -1,0 +1,71 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/concerts"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Event</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" *ngIf="concert; else notFound">
+  <div [class]="'cover detail-cover g' + concert.color">
+    <span class="cover-emoji">{{ concert.emoji }}</span>
+  </div>
+
+  <section class="detail-body">
+    <h1>{{ concert.name }}</h1>
+    <p class="subtitle">{{ concert.artist }} · {{ concert.genre }}</p>
+
+    <div class="info-grid">
+      <div class="info-cell">
+        <ion-icon name="calendar-outline"></ion-icon>
+        <span>{{ dateLabel(concert.date) }}</span>
+      </div>
+      <div class="info-cell">
+        <ion-icon name="time-outline"></ion-icon>
+        <span>{{ concert.time }}</span>
+      </div>
+      <div class="info-cell">
+        <ion-icon name="location-outline"></ion-icon>
+        <span>{{ concert.venue }}</span>
+      </div>
+    </div>
+
+    <p class="description">{{ concert.description }}</p>
+
+    <div class="ticket-box">
+      <div class="qty-row">
+        <span class="qty-label">Number of tickets</span>
+        <div class="stepper">
+          <ion-button fill="clear" size="small" (click)="changeQuantity(-1)"
+            >−</ion-button
+          >
+          <span class="qty">{{ quantity }}</span>
+          <ion-button fill="clear" size="small" (click)="changeQuantity(1)">+</ion-button>
+        </div>
+      </div>
+
+      <div class="total-row">
+        <span>Total</span>
+        <span class="total">
+          {{ total() | currency: 'PHP' : 'symbol-narrow' }}
+        </span>
+      </div>
+
+      <ion-button expand="block" class="buy-btn" (click)="buy()">
+        Buy tickets
+      </ion-button>
+      <p class="buy-note">E-ticket &amp; ticket code generated instantly.</p>
+    </div>
+  </section>
+</ion-content>
+
+<ng-template #notFound>
+  <ion-content>
+    <div class="empty">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <p>Concert not found.</p>
+      <ion-button fill="clear" href="/tabs/concerts">Back to Explore</ion-button>
+    </div>
+  </ion-content>
+</ng-template>

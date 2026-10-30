@@ -35,3 +35,29 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import "@ionic/angular/css/palettes/dark.system.css";
+
+/* =========================================================
+   VIBETIX shared styling
+   ========================================================= */
+
+/* Gradient covers for concert artwork cards */
+.g1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.g2 { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
+.g3 { background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%); }
+.g4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+.g5 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.g6 { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+
+.logo-title {
+  font-weight: 900;
+  letter-spacing: 3px;
+  background: linear-gradient(90deg, #8f7bff, #ff6ec7);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+ion-toolbar ion-title,
+ion-title {
+  padding-inline: 20px;
+}

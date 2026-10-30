@@ -1,0 +1,54 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>My Tickets</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <section class="tickets">
+    <ion-card class="ticket-card" *ngFor="let b of bookings">
+      <div [class]="'ticket-side g' + (concertOf(b)?.color ?? 1)">
+        <span class="side-emoji">{{ concertOf(b)?.emoji }}</span>
+      </div>
+
+      <div class="ticket-main">
+        <div class="top">
+          <div>
+            <h3>{{ concertOf(b)?.name }}</h3>
+            <p>{{ dateLabel(concertOf(b)?.date ?? b.createdAt) }}
+              · {{ concertOf(b)?.time }}
+            </p>
+          </div>
+          <ion-chip
+            class="status-chip"
+            [class.checked]="b.status === 'checked-in'"
+          >
+            {{ b.status === 'checked-in' ? 'Checked in' : 'Valid' }}
+          </ion-chip>
+        </div>
+
+        <div class="code-row">
+          <span class="code">{{ b.ticketCode }}</span>
+          <span class="qty">{{ b.quantity }} ticket{{ b.quantity > 1 ? 's' : '' }}</span>
+        </div>
+
+        <div class="meta-row">
+          <span>
+            <ion-icon name="person-outline"></ion-icon>
+            {{ b.customerName }}
+          </span>
+          <span class="price">
+            {{ b.total | currency: 'PHP' : 'symbol-narrow' }}
+          </span>
+        </div>
+      </div>
+    </ion-card>
+
+    <div class="empty" *ngIf="bookings.length === 0">
+      <ion-icon name="ticket-outline"></ion-icon>
+      <h3>No tickets yet</h3>
+      <p>Browse concerts and grab your first e-ticket!</p>
+      <ion-button (click)="goExplore()">Explore concerts</ion-button>
+    </div>
+  </section>
+</ion-content>

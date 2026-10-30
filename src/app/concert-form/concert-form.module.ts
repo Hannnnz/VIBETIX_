@@ -2,18 +2,17 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular/lazy';
 import { FormsModule } from '@angular/forms';
-import { HomePage } from './home.page';
+import { ConcertFormPage } from './concert-form.page';
 
-import { HomePageRoutingModule } from './home-routing.module';
-
+import { ConcertFormPageRoutingModule } from './concert-form-routing.module';
 
 @NgModule({
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    HomePageRoutingModule
+    ConcertFormPageRoutingModule,
   ],
-  declarations: [HomePage]
+  declarations: [ConcertFormPage],
 })
-export class HomePageModule {}
+export class ConcertFormPageModule {}

@@ -1,0 +1,93 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title><span class="console-tag">ADMIN DASHBOARD</span></ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="logout()">
+        <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="stats">
+    <div class="stat">
+      <span class="num">{{ concerts().length }}</span>
+      <span class="lbl">Concerts</span>
+    </div>
+    <div class="stat">
+      <span class="num">{{ stats().bookings }}</span>
+      <span class="lbl">Bookings</span>
+    </div>
+    <div class="stat">
+      <span class="num">{{ stats().tickets }}</span>
+      <span class="lbl">Tickets</span>
+    </div>
+    <div class="stat">
+      <span class="num">{{ stats().revenue | currency: 'PHP' : 'symbol-narrow' }}</span>
+      <span class="lbl">Revenue</span>
+    </div>
+  </div>
+
+  <ion-segment [(ngModel)]="tab" class="tabs">
+    <ion-segment-button value="concerts">
+      <ion-label>Concerts</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="bookings">
+      <ion-label>Bookings</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <section class="panel" *ngIf="tab === 'concerts'">
+    <div class="concert-row" *ngFor="let c of concerts()">
+      <div class="mini-cover" [class]="'mini-cover g' + c.color">
+        {{ c.emoji }}
+      </div>
+      <div class="concert-info">
+        <h3>{{ c.name }}</h3>
+        <p>{{ dateLabel(c.date) }} · {{ c.time }} · {{ c.venue }}</p>
+        <p class="artist">{{ c.artist }} · {{ c.genre }} ·
+          {{ c.price | currency: 'PHP' : 'symbol-narrow' }}</p>
+      </div>
+      <div class="actions">
+        <ion-button fill="clear" size="small" (click)="edit(c)">
+          <ion-icon slot="icon-only" name="pencil-outline"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" size="small" color="danger" (click)="remove(c)">
+          <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+        </ion-button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" *ngIf="tab === 'bookings'">
+    <ion-card class="b-card" *ngFor="let b of bookings()">
+      <ion-card-content class="b-body">
+        <div class="b-top">
+          <span class="code">{{ b.ticketCode }}</span>
+          <ion-chip
+            class="status-chip"
+            [class.checked]="b.status === 'checked-in'"
+          >
+            {{ b.status === 'checked-in' ? 'Checked in' : 'Valid' }}
+          </ion-chip>
+        </div>
+        <div class="b-mid">
+          <h3>{{ concertOf(b)?.name ?? 'Concert removed' }}</h3>
+          <p>{{ b.customerName }} · {{ b.customerEmail }} ·
+            {{ dateLabel(b.createdAt) }}</p>
+        </div>
+        <div class="b-bottom">
+          <span>{{ b.quantity }} ticket{{ b.quantity > 1 ? 's' : '' }}</span>
+          <span class="total">{{ b.total | currency: 'PHP' : 'symbol-narrow' }}</span>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </section>
+
+  <ion-fab slot="fixed" vertical="bottom" horizontal="end" *ngIf="tab === 'concerts'">
+    <ion-fab-button (click)="add()">
+      <ion-icon name="add-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>
