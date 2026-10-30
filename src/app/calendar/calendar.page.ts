@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { Concert, ConcertService } from '../services/concert.service';
@@ -37,14 +37,15 @@ export class CalendarPage {
     private concertService: ConcertService,
     private bookingService: BookingService,
     private auth: AuthService,
-    private router: Router
+    private router: Router,
+    private zone: NgZone
   ) {}
 
   ionViewWillEnter(): void {
-    // live calendar straight from Supabase
+    // live calendar straight from Supabase (repaint inside the zone!)
     Promise.all([this.concertService.hydrate(), this.bookingService.hydrate()])
       .catch(() => undefined)
-      .then(() => this.rebuild());
+      .then(() => this.zone.run(() => this.rebuild()));
     this.rebuild();
   }
 

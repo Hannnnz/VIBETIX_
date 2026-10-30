@@ -1,6 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 import { ToastController } from '@ionic/angular/lazy';
-
 import { Booking, BookingService } from '../services/booking.service';
 import { Concert, ConcertService } from '../services/concert.service';
 import { AuthService, Session } from '../services/auth.service';
@@ -20,14 +19,17 @@ export class StaffPage {
     private bookingService: BookingService,
     private concertService: ConcertService,
     private auth: AuthService,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private zone: NgZone
   ) {}
 
   ionViewWillEnter(): void {
     this.session = this.auth.getSession();
     // LIVE bookings straight from Supabase (staff sees the whole door list)
     void this.bookingService.hydrate().then(() => {
-      this.bookings = this.bookingService.getAll();
+      this.zone.run(() => {
+        this.bookings = this.bookingService.getAll();
+      });
     });
     this.bookings = this.bookingService.getAll();
   }

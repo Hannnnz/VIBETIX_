@@ -63,6 +63,8 @@ const FALLBACK_TIERS: { name: string; multiplier: number }[] = [
 export class ConcertService {
   concerts: Concert[] = [];
   tiers: TicketTier[] = [];
+  /** Human-readable reason of the last failed save (shown by the form). */
+  lastSaveError = '';
 
   constructor(
     private sb: SupabaseService,
@@ -152,6 +154,7 @@ export class ConcertService {
 
   async add(input: Omit<Concert, 'id' | 'color'>): Promise<Concert | null> {
     const color = Math.floor(Math.random() * 6) + 1;
+    const me = await this.client.auth.getUser();
     const row = {
       name: input.name,
       artist: input.artist,
@@ -165,7 +168,8 @@ export class ConcertService {
       rules: input.rules ?? null,
       emoji: input.emoji,
       color,
-      status: 'published',
+      status: 'published' as const,
+      created_by: me.data?.user?.id ?? null,
     };
     const { data, error } = await this.client
       .from('concerts')
@@ -173,6 +177,7 @@ export class ConcertService {
       .select()
       .single();
     if (error || !data) {
+      this.zone.run(() => (this.lastSaveError = error?.message ?? 'Unknown error'));
       console.error('concert add failed', error);
       return null;
     }
@@ -224,9 +229,11 @@ export class ConcertService {
       .update(payload)
       .eq('id', id);
     if (error) {
+      this.zone.run(() => (this.lastSaveError = error.message));
       console.error('concert update failed', error);
       return;
     }
+    this.lastSaveError = '';
     this.zone.run(() => {
       this.concerts = this.concerts.map((c) =>
         c.id === id ? { ...c, ...changes, id: c.id, color: c.color } : c
@@ -237,9 +244,11 @@ export class ConcertService {
   async remove(id: string): Promise<void> {
     const { error } = await this.client.from('concerts').delete().eq('id', id);
     if (error) {
+      this.zone.run(() => (this.lastSaveError = error.message));
       console.error('concert remove failed', error);
       return;
     }
+    this.lastSaveError = '';
     this.zone.run(() => {
       this.concerts = this.concerts.filter((c) => c.id !== id);
       this.tiers = this.tiers.filter((t) => t.concertId !== id);

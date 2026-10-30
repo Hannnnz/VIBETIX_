@@ -1,10 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { RecommendService } from '../services/recommend.service';
-
 @Component({
   selector: 'app-concerts',
   templateUrl: './concerts.page.html',
@@ -20,14 +19,19 @@ export class ConcertsPage {
     private concerts: ConcertService,
     private recommend: RecommendService,
     private router: Router,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private zone: NgZone
   ) {}
 
   ionViewWillEnter(): void {
     // LIVE data from Supabase + personalized loves, then re-rank the feed.
-    void this.concerts.hydrate().then(() => (this.memo.key = ''));
+    void this.concerts.hydrate().then(() =>
+      this.zone.run(() =>
+        this.memo = { key: '', list: [] }
+      )
+    );
     void this.recommend.hydrate();
-    this.memo.key = '';
+    this.memo = { key: '', list: [] };
   }
 
   /**

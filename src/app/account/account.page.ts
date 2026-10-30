@@ -1,7 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
-
 import { AuthService, Session } from '../services/auth.service';
 import { PaymentService, SavedMethod } from '../services/payment.service';
 
@@ -33,7 +32,8 @@ export class AccountPage {
     public auth: AuthService,
     private paymentService: PaymentService,
     private router: Router,
-    private alertCtrl: AlertController
+    private alertCtrl: AlertController,
+    private zone: NgZone
   ) {}
 
   ionViewWillEnter(): void {
@@ -43,10 +43,10 @@ export class AccountPage {
     // Admin extras: staff count + current company code (from Supabase)
     if (this.session?.role === 'admin') {
       void this.auth.staffAccounts().then((staff) => {
-        this.staffCount = staff.length;
+        this.zone.run(() => (this.staffCount = staff.length));
       });
       void this.auth.refreshCompanyCode().then((code) => {
-        this.companyCode = code || 'unavailable';
+        this.zone.run(() => (this.companyCode = code || 'unavailable'));
       });
     }
     if (this.session?.role === 'staff') {
@@ -57,7 +57,9 @@ export class AccountPage {
   private refreshMethods(): void {
     const email = this.session?.email ?? '';
     void this.paymentService.hydrate(email).then(() => {
-      this.methods = this.paymentService.getMethods(email);
+      this.zone.run(() => {
+        this.methods = this.paymentService.getMethods(email);
+      });
     });
     this.methods = this.paymentService.getMethods(email);
   }

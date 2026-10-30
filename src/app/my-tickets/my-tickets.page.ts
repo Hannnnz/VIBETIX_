@@ -1,6 +1,5 @@
 import { Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
-
 import { Booking, BookingService } from '../services/booking.service';
 import { Session, AuthService } from '../services/auth.service';
 import { Concert, ConcertService } from '../services/concert.service';
@@ -25,19 +24,16 @@ export class MyTicketsPage {
     private router: Router,
     private zone: NgZone
   ) {}
-
   ionViewWillEnter(): void {
     this.session = this.auth.getSession();
     const email = this.session?.email ?? '';
     // LIVE bookings from Supabase, then render
     void this.bookingService.hydrate().then(() => {
-      this.bookings = email
-        ? this.bookingService.getBookingsFor(email)
-        : [];
+      this.zone.run(() => {
+        this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
+      });
     });
-    this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
     this.now = Date.now();
-
     // Live DD:HH:MM:SS ticking for upcoming shows
     this.zone.runOutsideAngular(() => {
       this.ticker = setInterval(() => {

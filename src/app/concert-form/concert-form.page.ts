@@ -118,7 +118,11 @@ export class ConcertFormPage {
       const created = await this.concertService.add(
         payload as Omit<Concert, 'id' | 'color'>
       );
-      this.toast(created ? 'Event created in the database.' : 'Could not save the event.');
+      this.toast(
+        created
+          ? 'Event created in the database.'
+          : `Could not save the event — server said: ${this.concertService.lastSaveError}`
+      );
     }
     this.router.navigate(['/admin/events']);
   }

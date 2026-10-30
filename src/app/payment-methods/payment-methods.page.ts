@@ -1,7 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { ToastController } from '@ionic/angular/lazy';
-
 import {
   PaymentService,
   SavedMethod,
@@ -45,7 +44,8 @@ export class PaymentMethodsPage {
     private paymentService: PaymentService,
     private auth: AuthService,
     private alertCtrl: AlertController,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private zone: NgZone
   ) {}
 
   ionViewWillEnter(): void {
@@ -55,7 +55,9 @@ export class PaymentMethodsPage {
   private async refresh(): Promise<void> {
     const email = this.auth.getSession()?.email ?? '';
     await this.paymentService.hydrate(email);
-    this.methods = this.paymentService.getMethods(email);
+    this.zone.run(() => {
+      this.methods = this.paymentService.getMethods(email);
+    });
   }
 
   toggleAdd(): void {
