@@ -24,7 +24,9 @@ export class ConcertsPage {
   ) {}
 
   ionViewWillEnter(): void {
-    // Re-sorts / refreshes if an admin edited the list.
+    // LIVE data from Supabase + personalized loves, then re-rank the feed.
+    void this.concerts.hydrate().then(() => (this.memo.key = ''));
+    void this.recommend.hydrate();
     this.memo.key = '';
   }
 

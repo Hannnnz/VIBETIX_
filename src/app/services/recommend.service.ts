@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 
 import { AuthService } from './auth.service';
 import { Concert } from './concert.service';
+import { SupabaseService } from './supabase.service';
 
 /**
  * VIBETIX recommendation engine (pure frontend, in-memory).
@@ -64,7 +65,10 @@ export class RecommendService {
   /** Affinity per user email (guest included). */
   private store: Record<string, AffinityState> = {};
 
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    private sb: SupabaseService
+  ) {}
 
   private state(email: string): AffinityState {
     const key = email || 'guest';
@@ -84,7 +88,7 @@ export class RecommendService {
 
   // ── Signals ────────────────────────────────────────────────────────────
 
-  /** ♥ toggled from the Explore card. */
+  /** ♥ toggled from the Explore card — also persisted to concert_loves. */
   toggleLove(concert: Concert): boolean {
     const state = this.state(this.email());
     const id = concert.id;
@@ -99,11 +103,19 @@ export class RecommendService {
         0,
         (state.genre[concert.genre] ?? 0) - SIGNAL.love
       );
+      // DB delete (service role of the anon client + RLS "loves_manage_own")
+      void this.sb.client
+        .from('concert_loves')
+        .delete()
+        .eq('concert_id', id);
       return false;
     }
     state.loved.add(id);
     state.artist[concert.artist] = (state.artist[concert.artist] ?? 0) + delta * SIGNAL.love;
     state.genre[concert.genre] = (state.genre[concert.genre] ?? 0) + delta * SIGNAL.love;
+    void this.sb.client
+      .from('concert_loves')
+      .upsert({ concert_id: id, user_id: this.userId() });
     return true; // now loved
   }
 
@@ -115,12 +127,37 @@ export class RecommendService {
     return this.state(this.email()).loved.size;
   }
 
-  /** Opened a concert's page — curiosity signal for band + genre. */
+  /** Opened a concert's page — curiosity signal + concert_views row. */
   recordView(concert: Concert): void {
     const state = this.state(this.email());
     state.views[concert.id] = (state.views[concert.id] ?? 0) + 1;
     state.artist[concert.artist] = (state.artist[concert.artist] ?? 0) + SIGNAL.view;
     state.genre[concert.genre] = (state.genre[concert.genre] ?? 0) + SIGNAL.view;
+    void this.sb.client
+      .from('concert_views')
+      .insert({ concert_id: concert.id, user_id: this.userId() });
+  }
+
+  /** Auth user id for DB rows (empty → the insert is skipped by RLS). */
+  userId(): string {
+    // fire-and-forget helper; empty id rows are rejected by RLS, which is fine
+    return this.auth.getUserId() ?? '';
+  }
+
+  /** Loads the user's loved concerts from the DB on feed entry. */
+  async hydrate(): Promise<void> {
+    try {
+      const { data, error } = await this.sb.client
+        .from('concert_loves')
+        .select('concert_id');
+      if (error || !data) {
+        return;
+      }
+      const state = this.state(this.email());
+      (data as { concert_id: string }[]).forEach((row) => state.loved.add(row.concert_id));
+    } catch {
+      /* offline */
+    }
   }
 
   /** Order settled for an event — the strongest taste signal. */

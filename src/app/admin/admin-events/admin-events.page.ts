@@ -30,6 +30,10 @@ export class AdminEventsPage {
     });
   }
 
+  ionViewWillEnter(): void {
+    void this.concertService.hydrate();
+  }
+
   edit(concert: Concert): void {
     this.router.navigate(['/admin/event-form'], { queryParams: { id: concert.id } });
   }
@@ -48,7 +52,7 @@ export class AdminEventsPage {
           text: 'Delete',
           role: 'destructive',
           handler: async () => {
-            this.concertService.remove(concert.id);
+            await this.concertService.remove(concert.id);
             const toast = await this.toastCtrl.create({
               message: 'Event deleted.',
               duration: 1600,

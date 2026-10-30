@@ -14,6 +14,8 @@ import { PaymentService, SavedMethod } from '../services/payment.service';
 export class AccountPage {
   session: Session | null = null;
   methods: SavedMethod[] = [];
+  staffCount = 0;
+  companyCode = '…';
 
   readonly kindIcons: Record<string, string> = {
     gcash: 'phone-portrait-outline',
@@ -37,12 +39,27 @@ export class AccountPage {
   ionViewWillEnter(): void {
     this.session = this.auth.getSession();
     this.refreshMethods();
+
+    // Admin extras: staff count + current company code (from Supabase)
+    if (this.session?.role === 'admin') {
+      void this.auth.staffAccounts().then((staff) => {
+        this.staffCount = staff.length;
+      });
+      void this.auth.refreshCompanyCode().then((code) => {
+        this.companyCode = code || 'unavailable';
+      });
+    }
+    if (this.session?.role === 'staff') {
+      void this.auth.refreshCompanyCode();
+    }
   }
 
   private refreshMethods(): void {
-    this.methods = this.session
-      ? this.paymentService.getMethods(this.session.email)
-      : [];
+    const email = this.session?.email ?? '';
+    void this.paymentService.hydrate(email).then(() => {
+      this.methods = this.paymentService.getMethods(email);
+    });
+    this.methods = this.paymentService.getMethods(email);
   }
 
   get isCustomer(): boolean {

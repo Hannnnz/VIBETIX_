@@ -38,6 +38,12 @@ export class ConcertFormPage {
   ) {}
 
   ionViewWillEnter(): void {
+    // make sure the catalog is fresh before looking up the event
+    void this.concertService.hydrate().then(() => this.loadFromQuery());
+    this.loadFromQuery();
+  }
+
+  private loadFromQuery(): void {
     const id = this.route.snapshot.queryParamMap.get('id');
     const existing = id ? this.concertService.getById(id) : undefined;
     if (existing) {
@@ -106,11 +112,13 @@ export class ConcertFormPage {
     };
 
     if (this.editingId) {
-      this.concertService.update(this.editingId, payload);
-      this.toast('Event updated.');
+      await this.concertService.update(this.editingId, payload);
+      this.toast('Event updated — saved to the database.');
     } else {
-      this.concertService.add(payload as Omit<Concert, 'id' | 'color'>);
-      this.toast('Event created.');
+      const created = await this.concertService.add(
+        payload as Omit<Concert, 'id' | 'color'>
+      );
+      this.toast(created ? 'Event created in the database.' : 'Could not save the event.');
     }
     this.router.navigate(['/admin/events']);
   }

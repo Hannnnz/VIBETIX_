@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 
-import { Concert } from './concert.service';
 import { Session } from './auth.service';
+import { SupabaseService } from './supabase.service';
 
 export type BookingStatus = 'active' | 'checked-in';
 
@@ -24,92 +24,158 @@ export interface Booking {
   createdAt: string;
 }
 
-/** A few sample purchases so Staff/Admin views are not empty on first run. */
-const SEED: Booking[] = [
-  {
-    id: 'b1',
-    ticketCode: 'VTX-K7R2M4',
-    concertId: 'c1',
-    customerEmail: 'user@gmail.com',
-    customerName: 'Juan Customer',
-    tier: 'VIP',
-    seats: ['A4', 'A5'],
-    paidVia: 'GCash',
-    quantity: 2,
-    total: 7200,
-    status: 'checked-in',
-    createdAt: '2026-10-20T09:00:00.000Z',
-  },
-  {
-    id: 'b2',
-    ticketCode: 'VTX-Q3XW8D',
-    concertId: 'c2',
-    customerEmail: 'user@gmail.com',
-    customerName: 'Juan Customer',
-    tier: 'Lower Box',
-    seats: ['B7'],
-    paidVia: 'Visa •••• 5299',
-    quantity: 1,
-    total: 4800,
-    status: 'active',
-    createdAt: '2026-10-25T14:30:00.000Z',
-  },
-  {
-    id: 'b3',
-    ticketCode: 'VTX-T9PL5F',
-    concertId: 'c5',
-    customerEmail: 'user@gmail.com',
-    customerName: 'Juan Customer',
-    tier: 'SVIP',
-    seats: ['A1', 'A2', 'A3'],
-    paidVia: 'Google Play',
-    quantity: 3,
-    total: 40500,
-    status: 'active',
-    createdAt: '2026-10-28T11:15:00.000Z',
-  },
-];
+interface BookingRow {
+  id: string;
+  ticket_code: string;
+  concert_id: string;
+  customer_id: string;
+  tier_name: string;
+  unit_price: number;
+  quantity: number;
+  total_amount: number;
+  status: string;
+  paid_via: string;
+  created_at: string;
+  seats?: { seat_code: string }[];
+  customer?: { email: string; full_name: string } | null;
+}
 
 /**
- * Pure in-memory bookings for the frontend demo.
- * New purchases and check-ins work while the app is open, then reset.
+ * Bookings now live in the Supabase `bookings` table.
+ * Buying goes through the `place_booking` PostgreSQL function:
+ *  - price is computed SERVER-side (base × tier multiplier)
+ *  - the unique(seat) constraint makes double-selling impossible
+ *  - payment reference is masked only
  */
 @Injectable({ providedIn: 'root' })
 export class BookingService {
-  bookings: Booking[] = [...SEED];
+  bookings: Booking[] = [];
 
-  private newTicketCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let suffix = '';
-    for (let i = 0; i < 6; i++) {
-      suffix += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return `VTX-${suffix}`;
+  constructor(
+    private sb: SupabaseService,
+    private zone: NgZone
+  ) {}
+
+  private get client() {
+    return this.sb.client;
   }
 
-  create(
-    concert: Concert,
-    tier: string,
-    unitPrice: number,
-    seats: string[],
-    session: Session,
-    paidVia = 'Unknown'
-  ): Booking {
-    const booking: Booking = {
-      id: 'b' + Date.now(),
-      ticketCode: this.newTicketCode(),
-      concertId: concert.id,
-      customerEmail: session.email,
-      customerName: session.name,
-      tier,
-      seats: [...seats],
-      paidVia,
-      quantity: seats.length,
-      total: unitPrice * seats.length,
-      status: 'active',
-      createdAt: new Date().toISOString(),
+  private map(row: BookingRow, fallbackEmail = '', fallbackName = ''): Booking {
+    return {
+      id: row.id,
+      ticketCode: row.ticket_code,
+      concertId: row.concert_id,
+      customerEmail: row.customer?.email ?? fallbackEmail,
+      customerName: row.customer?.full_name ?? fallbackName,
+      tier: row.tier_name,
+      seats: (row.seats ?? []).map((s) => s.seat_code).sort(),
+      paidVia: row.paid_via,
+      quantity: row.quantity,
+      total: Number(row.total_amount ?? row.unit_price * row.quantity),
+      status: row.status === 'paid' ? 'active' : 'checked-in',
+      createdAt: row.created_at,
     };
-    this.bookings = [booking, ...this.bookings];
+  }
+
+  /** Loads my bookings (customer), or ALL bookings (staff/admin). */
+  async hydrate(): Promise<void> {
+    try {
+      const me = this.sb.client.auth.getUser();
+      const { data: profile } = await this.client
+        .from('profiles')
+        .select('role')
+        .eq('id', (await me).data?.user?.id ?? '')
+        .single();
+      const isElevated =
+        profile?.role === 'admin' || profile?.role === 'staff';
+
+      const query = this.client
+        .from('bookings')
+        .select(
+          `*, seats(seat_code),
+           customer:profiles!bookings_customer_id_fkey(email, full_name)`
+        )
+        .order('created_at', { ascending: false });
+
+      const { data, error } = isElevated
+        ? await query
+        : await query.eq('customer_id', (await me).data?.user?.id ?? '');
+      if (error) {
+        // Fallback without the embed (works even if FK naming differs)
+        const fallback = await this.client
+          .from('bookings')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (fallback.data) {
+          this.cacheRows(fallback.data as BookingRow[], '', '');
+        }
+        return;
+      }
+      this.cacheRows((data ?? []) as BookingRow[], '', '');
+    } catch {
+      /* keep the current cache */
+    }
+  }
+
+  private cacheRows(rows: BookingRow[], email: string, name: string): void {
+    this.zone.run(() => {
+      this.bookings = rows.map((r) => this.map(r, email, name));
+    });
+  }
+
+  /**
+   * Setstle a purchase through the database function.
+   * Returns null when seats were taken / validation failed.
+   */
+  async create(
+    concertId: string,
+    tierId: string | null,
+    tierName: string,
+    seats: string[],
+    paidVia: string
+  ): Promise<Booking | null> {
+    const params = {
+      p_concert_id: concertId,
+      p_tier_id: tierId,
+      p_tier_name: tierName,
+      p_seat_codes: seats.map((s) => s.toUpperCase()),
+      p_paid_via: paidVia,
+    };
+    const { data, error } = await this.client.rpc('place_booking', params);
+    if (error) {
+      console.error('place_booking failed:', error.message);
+      return null;
+    }
+    const payload = data as {
+      id: string;
+      ticket_code: string;
+      tier: string;
+      unit_price: number;
+      quantity: number;
+      total: number;
+      paid_via: string;
+      created_at: string;
+      seats: string[];
+    };
+
+    const me = await this.sb.client.auth.getUser();
+    const booking: Booking = {
+      id: payload.id,
+      ticketCode: payload.ticket_code,
+      concertId,
+      customerEmail: me.data?.user?.email ?? '',
+      customerName: '',
+      tier: payload.tier,
+      seats: payload.seats,
+      paidVia: payload.paid_via,
+      quantity: payload.quantity,
+      total: Number(payload.total),
+      status: 'active',
+      createdAt: payload.created_at,
+    };
+    this.zone.run(() => {
+      this.bookings = [booking, ...this.bookings];
+    });
     return booking;
   }
 
@@ -126,13 +192,29 @@ export class BookingService {
     return this.bookings.find((b) => b.ticketCode === normalized);
   }
 
-  /** Marks a ticket as used / scanned at the venue gate. */
-  checkIn(id: string): Booking | undefined {
-    const booking = this.bookings.find((b) => b.id === id);
-    if (booking && booking.status === 'active') {
-      booking.status = 'checked-in';
+  /**
+   * Gate check-in — goes through the `check_in_ticket` Postgres function.
+   * Error semantics: NOT_FOUND / NOT_PAID / ALREADY_USED (as {error}).
+   */
+  async gateCheckIn(ticketCode: string): Promise<
+    { ok: true; message: string } | { ok: false; reason: string }
+  > {
+    const { data, error } = await this.client.rpc('check_in_ticket', {
+      p_ticket_code: ticketCode.trim(),
+    });
+    if (error) {
+      const msg = error.message;
+      if (msg.includes('NOT_FOUND')) return { ok: false, reason: 'invalid' };
+      if (msg.includes('ALREADY_USED')) return { ok: false, reason: 'already-used' };
+      if (msg.includes('NOT_PAID')) return { ok: false, reason: 'not-paid' };
+      return { ok: false, reason: msg };
     }
-    return booking;
+    void this.hydrate(); // refresh local list/stat
+    const payload = data as { ticket_code: string; seats: string[]; tier: string };
+    return {
+      ok: true,
+      message: `${payload.ticket_code} checked in · seat(s) ${payload.seats.join(', ')}`,
+    };
   }
 
   /** Simple dashboard numbers for Staff/Admin screens. */

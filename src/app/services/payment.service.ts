@@ -1,4 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
+
+import { SupabaseService } from './supabase.service';
 
 /** Kind of payment instrument saved on the profile. */
 export type MethodKind = 'gcash' | 'card' | 'play';
@@ -11,26 +13,6 @@ export interface SavedMethod {
   detail: string;
   meta?: string;
 }
-
-/** Demo in-memory wallet (per email). Resets with the app like everything else. */
-const SEED: Record<string, SavedMethod[]> = {
-  'user@gmail.com': [
-    {
-      id: 'm1',
-      kind: 'gcash',
-      label: 'GCash',
-      detail: '+63 ••• ••• 4021',
-      meta: 'Juan Customer',
-    },
-    {
-      id: 'm2',
-      kind: 'card',
-      label: 'Visa Debit',
-      detail: '•••• •••• •••• 5299',
-      meta: 'Expires 09/28',
-    },
-  ],
-};
 
 /** The only receiver the app will ever settle to. */
 export const MERCHANT = {
@@ -77,25 +59,127 @@ export function maskPhone(digits: string): string {
   return `+63 ••• ••• ${digits.slice(-4)}`;
 }
 
+interface MethodRow {
+  id: string;
+  kind: MethodKind;
+  label: string;
+  detail: string;
+  meta: string | null;
+}
+
+/**
+ * Saved payment methods live in the Supabase `payment_methods` table.
+ * SECURITY: only MASKED references are ever stored (last 4 digits).
+ * Full card numbers and CVVs never leave the client form.
+ */
 @Injectable({ providedIn: 'root' })
 export class PaymentService {
-  private store: Record<string, SavedMethod[]> = { ...SEED };
+  /** cache per email for the sync getters pages already use */
+  private store: Record<string, SavedMethod[]> = {};
 
-  getMethods(email: string): SavedMethod[] {
-    return [...(this.store[email] ?? [])];
+  constructor(
+    private sb: SupabaseService,
+    private zone: NgZone
+  ) {}
+
+  private get client() {
+    return this.sb.client;
   }
 
-  add(email: string, method: Omit<SavedMethod, 'id'>): SavedMethod {
+  private ensure(email: string): SavedMethod[] {
+    const key = email || 'guest';
+    if (!this.store[key]) {
+      this.store[key] = [];
+    }
+    return this.store[key];
+  }
+
+  /** Pulls the signed-in user's saved methods from the database. */
+  async hydrate(email: string): Promise<void> {
+    const list = this.ensure(email);
+    try {
+      const { data, error } = await this.client
+        .from('payment_methods')
+        .select('id, kind, label, detail, meta')
+        .order('created_at', { ascending: true });
+      if (error || !data) {
+        return;
+      }
+      this.zone.run(() => {
+        list.length = 0;
+        (data as MethodRow[]).forEach((row) => {
+          list.push({
+            id: row.id,
+            kind: row.kind,
+            label: row.label,
+            detail: row.detail,
+            meta: row.meta ?? undefined,
+          });
+        });
+      });
+    } catch {
+      /* keep current cache */
+    }
+  }
+
+  getMethods(email: string): SavedMethod[] {
+    return [...this.ensure(email)];
+  }
+
+  /** Adds a method to the real table; the masked detail was computed by the caller. */
+  async add(
+    email: string,
+    method: Omit<SavedMethod, 'id'>
+  ): Promise<SavedMethod | null> {
+    const me = await this.sb.client.auth.getUser();
+    const userId = me.data?.user?.id;
+    if (!userId) {
+      return null;
+    }
+    const { data, error } = await this.client
+      .from('payment_methods')
+      .insert({
+        customer_id: userId,
+        kind: method.kind,
+        label: method.label,
+        detail: method.detail,
+        meta: method.meta ?? null,
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      console.error('method add failed', error);
+      return null;
+    }
+    const row = data as MethodRow;
     const saved: SavedMethod = {
-      ...method,
-      id: 'm' + Date.now(),
+      id: row.id,
+      kind: row.kind,
+      label: row.label,
+      detail: row.detail,
+      meta: row.meta ?? undefined,
     };
-    const list = this.store[email] ?? (this.store[email] = []);
-    list.push(saved);
+    this.zone.run(() => {
+      this.ensure(email).push(saved);
+    });
     return saved;
   }
 
-  remove(email: string, id: string): void {
-    this.store[email] = (this.store[email] ?? []).filter((m) => m.id !== id);
+  async remove(email: string, id: string): Promise<void> {
+    const { error } = await this.client
+      .from('payment_methods')
+      .delete()
+      .eq('id', id);
+    if (error) {
+      console.error('method remove failed', error);
+      return;
+    }
+    this.zone.run(() => {
+      const list = this.ensure(email);
+      const idx = list.findIndex((m) => m.id === id);
+      if (idx >= 0) {
+        list.splice(idx, 1);
+      }
+    });
   }
 }

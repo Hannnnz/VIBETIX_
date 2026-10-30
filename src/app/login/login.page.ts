@@ -52,7 +52,8 @@ export class LoginPage {
       return;
     }
     this.auth.rememberMe = this.remember;
-    const session = this.auth.login(this.email, this.password);
+    this.auth.rememberedEmail = this.remember ? this.email.trim() : '';
+    const session = await this.auth.login(this.email, this.password);
     if (!session) {
       this.toast('Invalid email or password.');
       return;

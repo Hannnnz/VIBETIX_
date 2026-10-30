@@ -45,9 +45,11 @@ export class RegisterPage {
       return;
     }
 
-    const session = this.auth.register(this.name, email, this.password, this.role);
+    const session = await this.auth.register(this.name, email, this.password, this.role);
     if (!session) {
-      this.toast('This email is already registered. Try signing in.');
+      this.toast(
+        'Signup issue — if the account exists or needs email confirmation, check your inbox or try signing in.'
+      );
       return;
     }
 

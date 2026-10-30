@@ -52,8 +52,9 @@ export class PaymentMethodsPage {
     this.refresh();
   }
 
-  private refresh(): void {
+  private async refresh(): Promise<void> {
     const email = this.auth.getSession()?.email ?? '';
+    await this.paymentService.hydrate(email);
     this.methods = this.paymentService.getMethods(email);
   }
 
@@ -62,7 +63,7 @@ export class PaymentMethodsPage {
     this.kind = 'gcash';
   }
 
-  save(): void {
+  async save(): Promise<void> {
     const email = this.auth.getSession()?.email;
     if (!email) {
       return;
@@ -74,7 +75,7 @@ export class PaymentMethodsPage {
         this.toast('Enter a valid mobile number (10 digits).');
         return;
       }
-      this.paymentService.add(email, {
+      await this.paymentService.add(email, {
         kind: 'gcash',
         label: 'GCash',
         detail: maskPhone(digits),
@@ -90,7 +91,7 @@ export class PaymentMethodsPage {
         this.toast('Cardholder name is required.');
         return;
       }
-      this.paymentService.add(email, {
+      await this.paymentService.add(email, {
         kind: 'card',
         label: `${this.brand(digits)} Debit`,
         detail: maskCardTail(digits),
@@ -126,10 +127,12 @@ export class PaymentMethodsPage {
           text: 'Remove',
           role: 'destructive',
           handler: () => {
-            const email = this.auth.getSession()?.email ?? '';
-            this.paymentService.remove(email, method.id);
-            this.toast('Payment method removed.');
-            this.refresh();
+            void (async () => {
+              const email = this.auth.getSession()?.email ?? '';
+              await this.paymentService.remove(email, method.id);
+              this.toast('Payment method removed.');
+              await this.refresh();
+            })();
           },
         },
       ],

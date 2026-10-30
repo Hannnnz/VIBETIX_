@@ -41,6 +41,10 @@ export class CalendarPage {
   ) {}
 
   ionViewWillEnter(): void {
+    // live calendar straight from Supabase
+    Promise.all([this.concertService.hydrate(), this.bookingService.hydrate()])
+      .catch(() => undefined)
+      .then(() => this.rebuild());
     this.rebuild();
   }
 

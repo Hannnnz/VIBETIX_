@@ -18,11 +18,12 @@ export class SplashPage {
     private zone: NgZone
   ) {}
 
-  ionViewWillEnter(): void {
-    // Brand animation, then straight to login (or the role's home).
+  async ionViewWillEnter(): Promise<void> {
+    // Brand animation while the persisted Supabase session is restored.
     this.zone.runOutsideAngular(() => {
       setTimeout(() => {
-        this.zone.run(() => {
+        this.zone.run(async () => {
+          await this.auth.hydrateSession();
           const target = this.auth.getSession() ? this.auth.roleHome : '/login';
           this.router.navigateByUrl(target, { replaceUrl: true });
         });

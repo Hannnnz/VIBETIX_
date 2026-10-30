@@ -28,9 +28,14 @@ export class MyTicketsPage {
 
   ionViewWillEnter(): void {
     this.session = this.auth.getSession();
-    this.bookings = this.session
-      ? this.bookingService.getBookingsFor(this.session.email)
-      : [];
+    const email = this.session?.email ?? '';
+    // LIVE bookings from Supabase, then render
+    void this.bookingService.hydrate().then(() => {
+      this.bookings = email
+        ? this.bookingService.getBookingsFor(email)
+        : [];
+    });
+    this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
     this.now = Date.now();
 
     // Live DD:HH:MM:SS ticking for upcoming shows

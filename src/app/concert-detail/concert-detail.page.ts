@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { AuthService } from '../services/auth.service';
+import { SupabaseService } from '../services/supabase.service';
 
 interface TicketTier {
+  id?: string;
   name: string;
   price: number;
   perks: string;
@@ -16,12 +18,12 @@ interface TicketTier {
   styleUrls: ['./concert-detail.page.scss'],
   standalone: false,
 })
-export class ConcertDetailPage implements OnInit {
+export class ConcertDetailPage {
   concert: Concert | undefined;
   tiers: TicketTier[] = [];
   selectedTier: TicketTier | null = null;
 
-  /** Seat map: 4 rows × 8 seats, some already taken */
+  /** Seat map: 4 rows × 8 seats; taken seats come from the real bookings */
   rows = ['A', 'B', 'C', 'D'];
   cols = [1, 2, 3, 4, 5, 6, 7, 8];
   taken = new Set<string>();
@@ -33,10 +35,11 @@ export class ConcertDetailPage implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private concertService: ConcertService,
-    private auth: AuthService
+    public auth: AuthService,
+    private sb: SupabaseService
   ) {}
 
-  ngOnInit(): void {
+  ionViewWillEnter(): void {
     this.load();
   }
 
@@ -44,17 +47,44 @@ export class ConcertDetailPage implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     this.concert = this.concertService.getById(id || '');
     if (this.concert) {
-      const base = this.concert.price;
-      this.tiers = [
-        { name: 'Gen Ad', price: base, perks: 'Free seating section' },
-        { name: 'Upper Box', price: Math.round(base * 1.25), perks: 'Reserved seat, elevated view' },
-        { name: 'Lower Box', price: Math.round(base * 1.5), perks: 'Reserved seat, closer stage' },
-        { name: 'VIP', price: Math.round(base * 2), perks: 'Premium seated area + VIP lane' },
-        { name: 'SVIP', price: Math.round(base * 3), perks: 'Front zone + artist merch pack' },
-      ];
-      // pre-seed an untaken map; user picks a tier first
-      this.taken = new Set<string>();
+      const perks: Record<string, string> = {
+        'Gen Ad': 'Free seating section',
+        'Upper Box': 'Reserved seat, elevated view',
+        'Lower Box': 'Reserved seat, closer stage',
+        VIP: 'Premium seated area + VIP lane',
+        SVIP: 'Front zone + artist merch pack',
+      };
+      this.tiers = this.concertService.tiersFor(this.concert.id).map((t) => ({
+        id: t.id,
+        name: t.name,
+        price: Math.round(this.concert!.price * t.multiplier),
+        perks: perks[t.name] ?? 'Standard access',
+      }));
+      this.selectedTier = this.selectedTier
+        ? this.tiers.find((t) => t.name === this.selectedTier!.name) ?? null
+        : null;
       this.selected = new Set<string>();
+      this.loadTakenSeats();
+    }
+  }
+
+  /** Sold seats straight from the bookings table (always current). */
+  private async loadTakenSeats(): Promise<void> {
+    if (!this.concert) {
+      return;
+    }
+    try {
+      const { data, error } = await this.sb.client
+        .from('seats')
+        .select('seat_code')
+        .eq('concert_id', this.concert.id);
+      if (error) {
+        return;
+      }
+      const codes = (data ?? []).map((s) => (s as { seat_code: string }).seat_code);
+      this.taken = new Set(codes);
+    } catch {
+      /* offline — show all seats free */
     }
   }
 
@@ -68,18 +98,6 @@ export class ConcertDetailPage implements OnInit {
   chooseTier(tier: TicketTier): void {
     this.selectedTier = tier;
     this.selected = new Set<string>();
-    this.taken = this.generateTakenSeats();
-  }
-
-  /** ~1/3 of seats are already sold */
-  private generateTakenSeats(): Set<string> {
-    const taken = new Set<string>();
-    while (taken.size < 12) {
-      const row = this.rows[Math.floor(Math.random() * this.rows.length)];
-      const col = 1 + Math.floor(Math.random() * this.cols.length);
-      taken.add(`${row}${col}`);
-    }
-    return taken;
   }
 
   toggleSeat(seat: string): void {
@@ -138,6 +156,7 @@ export class ConcertDetailPage implements OnInit {
       queryParams: {
         id: this.concert.id,
         tier: this.selectedTier.name,
+        tierId: this.selectedTier.id ?? '',
         price: this.selectedTier.price,
         seats: this.seats().join(','),
       },

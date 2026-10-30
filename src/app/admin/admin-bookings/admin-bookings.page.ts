@@ -17,6 +17,10 @@ export class AdminBookingsPage {
     private concertService: ConcertService
   ) {}
 
+  ionViewWillEnter(): void {
+    void this.bookingService.hydrate(); // live bookings incl. every customer
+  }
+
   filtered(): Booking[] {
     const term = this.search.trim().toLowerCase();
     const all = this.bookingService.getAll();

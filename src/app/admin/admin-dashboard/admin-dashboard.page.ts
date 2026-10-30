@@ -22,6 +22,8 @@ export class AdminDashboardPage {
 
   ionViewWillEnter(): void {
     this.session = this.auth.getSession();
+    void this.bookingService.hydrate();
+    void this.concertService.hydrate();
   }
 
   stats() {

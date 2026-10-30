@@ -25,6 +25,10 @@ export class StaffPage {
 
   ionViewWillEnter(): void {
     this.session = this.auth.getSession();
+    // LIVE bookings straight from Supabase (staff sees the whole door list)
+    void this.bookingService.hydrate().then(() => {
+      this.bookings = this.bookingService.getAll();
+    });
     this.bookings = this.bookingService.getAll();
   }
 
@@ -65,10 +69,19 @@ export class StaffPage {
     if (booking.status === 'checked-in') {
       return;
     }
-    this.bookingService.checkIn(booking.id);
-    this.bookings = this.bookingService.getAll();
+    // REAL gate check — the check_in_ticket Postgres function (no double entry)
+    const outcome = await this.bookingService.gateCheckIn(booking.ticketCode);
+    if (outcome.ok) {
+      this.bookings = this.bookingService.getAll();
+    }
     const toast = await this.toastCtrl.create({
-      message: `${booking.ticketCode} checked in · seat(s) ${booking.seats.join(', ')}`,
+      message: outcome.ok
+        ? outcome.message
+        : outcome.reason === 'already-used'
+          ? `${booking.ticketCode} was already checked in.`
+          : outcome.reason === 'invalid'
+            ? 'Ticket not found on the server.'
+            : outcome.reason,
       duration: 2000,
       position: 'top',
       color: 'dark',

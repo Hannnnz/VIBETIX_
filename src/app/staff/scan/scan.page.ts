@@ -27,6 +27,11 @@ export class ScanPage {
     private toastCtrl: ToastController
   ) {}
 
+  ionViewWillEnter(): void {
+    // door list straight from the server
+    void this.bookingService.hydrate();
+  }
+
   concertOf(booking: Booking): Concert | undefined {
     return this.concertService.getById(booking.concertId);
   }
@@ -72,17 +77,24 @@ export class ScanPage {
     this.scanCode(pick.ticketCode);
   }
 
-  confirmCheckIn(): void {
+  /** Confirms the check-in — DB-enforced one entry per ticket (RPC). */
+  async confirmCheckIn(): Promise<void> {
     const booking = this.result?.booking;
     if (!booking) {
       return;
     }
-    this.bookingService.checkIn(booking.id);
-    this.result = { state: 'already-used', booking };
-    this.lastGoodCode = booking.ticketCode;
-    this.toast(
-      `Gate cleared:\n${booking.ticketCode} · ${booking.tier} · seat(s) ${booking.seats.join(', ')}`
-    );
+    const outcome = await this.bookingService.gateCheckIn(booking.ticketCode);
+    if (outcome.ok) {
+      this.result = { state: 'already-used', booking };
+      this.lastGoodCode = booking.ticketCode;
+      this.toast(`Gate cleared:\n${outcome.message}`);
+    } else if (outcome.reason === 'already-used') {
+      this.result = { state: 'already-used', booking };
+      this.toast(`${booking.ticketCode} was already checked in.`);
+    } else {
+      this.toast(outcome.reason === 'invalid' ? 'Ticket not found.' : outcome.reason);
+    }
+    void this.bookingService.hydrate();
   }
 
   /** Right-swipe result away / clear button to use the scanner again. */

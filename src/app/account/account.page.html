@@ -57,12 +57,12 @@
     <ion-item button detail (click)="manageTeam()">
       <ion-icon slot="start" name="people-outline"></ion-icon>
       <ion-label>My team</ion-label>
-      <ion-note slot="end">{{ auth.staffAccounts().length }} staff</ion-note>
+      <ion-note slot="end">{{ staffCount }} staff</ion-note>
     </ion-item>
     <ion-item>
       <ion-icon slot="start" name="key-outline"></ion-icon>
       <ion-label>Company code</ion-label>
-      <ion-note slot="end" class="code-note">{{ auth.getCompanyCode() }}</ion-note>
+      <ion-note slot="end" class="code-note">{{ companyCode }}</ion-note>
     </ion-item>
   </ion-list>
 

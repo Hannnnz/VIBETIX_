@@ -25,6 +25,7 @@ export class JoinPage {
 
   ionViewWillEnter(): void {
     this.code = '';
+    void this.auth.refreshCompanyCode();
   }
 
   get joined(): boolean {
@@ -40,7 +41,7 @@ export class JoinPage {
       return;
     }
     this.joining = true;
-    const ok = this.auth.joinCompany(this.code);
+    const ok = await this.auth.joinCompany(this.code);
     this.joining = false;
 
     if (ok) {

@@ -14,6 +14,7 @@ import { AuthService, AppUser } from '../../services/auth.service';
 export class TeamPage {
   staff: AppUser[] = [];
   adding = false;
+  busy = false;
 
   addName = '';
   addEmail = '';
@@ -29,11 +30,12 @@ export class TeamPage {
   ) {}
 
   ionViewWillEnter(): void {
-    this.refresh();
+    void this.auth.refreshCompanyCode();
+    void this.refresh();
   }
 
-  private refresh(): void {
-    this.staff = this.auth.staffAccounts();
+  private async refresh(): Promise<void> {
+    this.staff = await this.auth.staffAccounts();
   }
 
   get companyCode(): string {
@@ -57,8 +59,10 @@ export class TeamPage {
         {
           text: 'Reset',
           handler: () => {
-            this.auth.regenerateCompanyCode();
-            this.toast('New company code generated.');
+            void (async () => {
+              await this.auth.regenerateCompanyCode();
+              this.toast('New company code generated.');
+            })();
           },
         },
       ],
@@ -73,21 +77,29 @@ export class TeamPage {
     this.newCredentials = null;
   }
 
-  createStaff(): void {
+  async createStaff(): Promise<void> {
+    if (this.busy) {
+      return;
+    }
     if (!this.addName.trim() || !this.addEmail.trim()) {
       this.toast('Fill in both name and email.');
       return;
     }
-    const created = this.auth.addStaff(this.addName, this.addEmail);
+    this.busy = true;
+    const created = await this.auth.addStaff(this.addName, this.addEmail);
+    this.busy = false;
+
     if (!created) {
-      this.toast('That email is already registered. Use another one.');
+      this.toast(
+        'Could not create the staff account — deploy the "create-staff" function (see supabase/README.md) or use a signed-up account.'
+      );
       return;
     }
     this.newCredentials = created;
     this.adding = false;
     this.addName = '';
     this.addEmail = '';
-    this.refresh();
+    void this.refresh();
     this.toast('Staff account created.');
   }
 
@@ -101,9 +113,11 @@ export class TeamPage {
           text: 'Remove',
           role: 'destructive',
           handler: () => {
-            this.auth.removeStaff(member.email);
-            this.toast('Staff member removed.');
-            this.refresh();
+            void (async () => {
+              await this.auth.removeStaff(member.email);
+              this.toast('Staff member removed.');
+              void this.refresh();
+            })();
           },
         },
       ],
@@ -122,7 +136,7 @@ export class TeamPage {
   private async toast(message: string): Promise<void> {
     const toast = await this.toastCtrl.create({
       message,
-      duration: 2200,
+      duration: 3000,
       position: 'top',
       color: 'dark',
     });

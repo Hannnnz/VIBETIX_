@@ -38,6 +38,8 @@ export class PaymentPage {
 
   /** select → pay → processing → success */
   step: 'select' | 'pay' | 'processing' | 'success' = 'select';
+  /** DB ticket tier id (for server-side price computation). */
+  tierId: string | null = null;
 
   /** Debit/credit card form */
   cardNumber = '';
@@ -75,6 +77,8 @@ export class PaymentPage {
       const id = this.route.snapshot.queryParamMap.get('id') ?? '';
       this.concert = this.concertService.getById(id);
       this.tierName = this.route.snapshot.queryParamMap.get('tier') ?? '';
+      const tierId = this.route.snapshot.queryParamMap.get('tierId') ?? '';
+      this.tierId = tierId.length > 0 ? tierId : null;
       this.unitPrice = Number(this.route.snapshot.queryParamMap.get('price') ?? 0);
       this.seats = (this.route.snapshot.queryParamMap.get('seats') ?? '')
         .split(',')
@@ -294,15 +298,22 @@ export class PaymentPage {
     // Simulated gateway: receiver account matched, funds captured.
     this.zone.runOutsideAngular(() => {
       setTimeout(() => {
-        this.zone.run(() => {
-          const booking = this.bookingService.create(
-            this.concert!,
+        this.zone.run(async () => {
+          // REAL backend call: Postgres place_booking — server-computed price,
+          // DB-level seat locking ('Seat already taken' if someone beat us)
+          const booking = await this.bookingService.create(
+            this.concert!.id,
+            this.tierId,
             this.tierName,
-            this.unitPrice,
             this.seats,
-            session,
             paidVia
           );
+          if (!booking) {
+            this.toast('Seat conflict or payment issue — pick seats again.');
+            this.step = 'select';
+            this.backToSelect();
+            return;
+          }
           // 🎟 strongest taste signal — future Explore order adapts.
           this.recommend.recordPurchase(this.concert!);
           this.lastCode = booking.ticketCode;
