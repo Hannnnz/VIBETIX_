@@ -16,6 +16,8 @@ export interface Booking {
   tier: string;
   /** Actual seat codes picked on the seat map, e.g. ['A4', 'A5']. */
   seats: string[];
+  /** Payment channel the booking was settled with. */
+  paidVia: string;
   quantity: number;
   total: number;
   status: BookingStatus;
@@ -32,6 +34,7 @@ const SEED: Booking[] = [
     customerName: 'Juan Customer',
     tier: 'VIP',
     seats: ['A4', 'A5'],
+    paidVia: 'GCash',
     quantity: 2,
     total: 7200,
     status: 'checked-in',
@@ -45,6 +48,7 @@ const SEED: Booking[] = [
     customerName: 'Juan Customer',
     tier: 'Lower Box',
     seats: ['B7'],
+    paidVia: 'Visa •••• 5299',
     quantity: 1,
     total: 4800,
     status: 'active',
@@ -58,6 +62,7 @@ const SEED: Booking[] = [
     customerName: 'Juan Customer',
     tier: 'SVIP',
     seats: ['A1', 'A2', 'A3'],
+    paidVia: 'Google Play',
     quantity: 3,
     total: 40500,
     status: 'active',
@@ -87,7 +92,8 @@ export class BookingService {
     tier: string,
     unitPrice: number,
     seats: string[],
-    session: Session
+    session: Session,
+    paidVia = 'Unknown'
   ): Booking {
     const booking: Booking = {
       id: 'b' + Date.now(),
@@ -97,6 +103,7 @@ export class BookingService {
       customerName: session.name,
       tier,
       seats: [...seats],
+      paidVia,
       quantity: seats.length,
       total: unitPrice * seats.length,
       status: 'active',

@@ -44,6 +44,81 @@
   }
 }
 
+/* Payment methods list */
+.pm-list {
+  background: transparent;
+}
+
+.pm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px 0;
+}
+
+.pm-title {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ion-color-step-300, #9a9a9a);
+  font-weight: 800;
+}
+
+.pm-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+
+  .pm-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(229, 9, 20, 0.1);
+    border: 1px solid rgba(229, 9, 20, 0.3);
+
+    ion-icon {
+      font-size: 18px;
+      color: var(--app-red);
+    }
+  }
+
+  .pm-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .pm-label {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    small {
+      color: var(--ion-color-step-300, #9a9a9a);
+    }
+  }
+
+  .pm-chev {
+    color: var(--ion-color-step-400, #7a7a7a);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.pm-empty {
+  padding: 14px 16px 4px;
+  text-align: center;
+  color: var(--ion-color-step-300, #9a9a9a);
+  font-size: 12px;
+}
+
 .footnote {
   padding: 16px 24px;
   text-align: center;

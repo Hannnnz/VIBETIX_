@@ -3,6 +3,7 @@ import { AlertController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 
 import { AuthService, Session } from '../services/auth.service';
+import { PaymentService, SavedMethod } from '../services/payment.service';
 
 @Component({
   selector: 'app-account',
@@ -12,15 +13,34 @@ import { AuthService, Session } from '../services/auth.service';
 })
 export class AccountPage {
   session: Session | null = null;
+  methods: SavedMethod[] = [];
+
+  readonly kindIcons: Record<string, string> = {
+    gcash: 'phone-portrait-outline',
+    card: 'card-outline',
+    play: 'logo-google-play',
+  };
 
   constructor(
     private auth: AuthService,
+    private paymentService: PaymentService,
     private router: Router,
     private alertCtrl: AlertController
   ) {}
 
   ionViewWillEnter(): void {
     this.session = this.auth.getSession();
+    this.refreshMethods();
+  }
+
+  private refreshMethods(): void {
+    this.methods = this.session
+      ? this.paymentService.getMethods(this.session.email)
+      : [];
+  }
+
+  manageMethods(): void {
+    this.router.navigate(['/tabs/payment-methods']);
   }
 
   initials(): string {

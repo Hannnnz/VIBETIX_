@@ -1,9 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../services/concert.service';
-import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 
 interface TicketTier {
@@ -35,9 +33,7 @@ export class ConcertDetailPage implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private concertService: ConcertService,
-    private bookingService: BookingService,
-    private auth: AuthService,
-    private toastCtrl: ToastController
+    private auth: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -94,7 +90,7 @@ export class ConcertDetailPage implements OnInit {
       return;
     }
     if (!this.selected.has(seat) && this.selected.size >= this.maxSeats) {
-      this.toast(`Up to ${this.maxSeats} seats per booking.`);
+      // silent cap — the step-3 summary shows the count clearly
       return;
     }
     if (this.selected.has(seat)) {
@@ -129,40 +125,22 @@ export class ConcertDetailPage implements OnInit {
     });
   }
 
+  /** Hands the order over to the checkout / payment page. */
   async buy(): Promise<void> {
     const session = this.auth.getSession();
     if (!session || !this.concert) {
       return;
     }
     if (!this.selectedTier || this.selected.size === 0) {
-      this.toast('Pick a ticket type and your seats first.');
       return;
     }
-    const booking = this.bookingService.create(
-      this.concert,
-      this.selectedTier.name,
-      this.selectedTier.price,
-      this.seats(),
-      session
-    );
-    const toast = await this.toastCtrl.create({
-      message: `${booking.quantity} seat(s) booked · ${booking.ticketCode}`,
-      duration: 2500,
-      position: 'top',
-      color: 'dark',
-      icon: 'ticket-outline',
+    this.router.navigate(['/payment'], {
+      queryParams: {
+        id: this.concert.id,
+        tier: this.selectedTier.name,
+        price: this.selectedTier.price,
+        seats: this.seats().join(','),
+      },
     });
-    await toast.present();
-    this.router.navigate(['/tabs/my-tickets']);
-  }
-
-  private async toast(message: string): Promise<void> {
-    const toast = await this.toastCtrl.create({
-      message,
-      duration: 1800,
-      position: 'top',
-      color: 'dark',
-    });
-    await toast.present();
   }
 }

@@ -39,6 +39,13 @@ const routes: Routes = [
         (m) => m.ConcertDetailPageModule
       ),
   },
+  // Checkout — payment methods: GCash / card / QR / Google Play
+  {
+    path: 'payment',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./payment/payment.module').then((m) => m.PaymentPageModule),
+  },
   // Staff area with tab nav: Dashboard · Scan · Account. staff@gmail.com
   {
     path: 'staff',

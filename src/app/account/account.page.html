@@ -14,6 +14,33 @@
     </ion-chip>
   </div>
 
+  <ion-list inset lines="full" class="pm-list">
+    <div class="pm-head">
+      <p class="pm-title">Payment methods ({{ methods.length }})</p>
+      <ion-button fill="clear" size="small" (click)="manageMethods()">
+        Manage
+      </ion-button>
+    </div>
+
+    <div class="pm-row" *ngFor="let m of methods" (click)="manageMethods()">
+      <div class="pm-icon">
+        <ion-icon [name]="kindIcons[m.kind] ?? 'card-outline'"></ion-icon>
+      </div>
+      <div class="pm-text">
+        <span class="pm-label">{{ m.label }}</span>
+        <small>{{ m.detail }}</small>
+      </div>
+      <ion-icon class="pm-chev" name="chevron-forward-outline"></ion-icon>
+    </div>
+
+    <div class="pm-empty" *ngIf="methods.length === 0">
+      <p>No payment method saved yet.</p>
+      <ion-button fill="clear" size="small" (click)="manageMethods()">
+        Add one now
+      </ion-button>
+    </div>
+  </ion-list>
+
   <ion-list inset lines="full">
     <ion-item>
       <ion-icon slot="start" name="information-circle-outline"></ion-icon>

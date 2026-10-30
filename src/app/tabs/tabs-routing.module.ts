@@ -32,6 +32,13 @@ const routes: Routes = [
           import('../account/account.module').then((m) => m.AccountPageModule),
       },
       {
+        path: 'payment-methods',
+        loadChildren: () =>
+          import('../payment-methods/payment-methods.module').then(
+            (m) => m.PaymentMethodsPageModule
+          ),
+      },
+      {
         path: '',
         redirectTo: 'concerts',
         pathMatch: 'full',

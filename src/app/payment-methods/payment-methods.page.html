@@ -1,0 +1,107 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/account"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Payment methods</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <section class="wrap">
+    <p class="section-label">Saved on this device (masked only)</p>
+
+    <div class="m-card" *ngFor="let m of methods">
+      <div class="m-icon">
+        <ion-icon [name]="kindIcons[m.kind] ?? 'card-outline'"></ion-icon>
+      </div>
+      <div class="m-info">
+        <h4>{{ m.label }}</h4>
+        <p>{{ m.detail }}<ng-container *ngIf="m.meta"> · {{ m.meta }}</ng-container></p>
+      </div>
+      <ion-button fill="clear" size="small" color="danger" (click)="remove(m)">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    </div>
+
+    <div class="empty" *ngIf="methods.length === 0 && !adding">
+      <ion-icon name="card-outline"></ion-icon>
+      <p>No payment methods yet.</p>
+    </div>
+
+    <!-- Add panel -->
+    <div class="add-panel card-lg" *ngIf="adding">
+      <div class="kind-row">
+        <button
+          type="button"
+          class="kind-btn"
+          [class.selected]="kind === 'gcash'"
+          (click)="kind = 'gcash'"
+        >
+          <ion-icon name="phone-portrait-outline"></ion-icon>
+          GCash
+        </button>
+        <button
+          type="button"
+          class="kind-btn"
+          [class.selected]="kind === 'card'"
+          (click)="kind = 'card'"
+        >
+          <ion-icon name="card-outline"></ion-icon>
+          Card
+        </button>
+      </div>
+
+      <ng-container *ngIf="kind === 'gcash'">
+        <ion-item lines="none" class="field">
+          <ion-input
+            label="Mobile number"
+            labelPlacement="floating"
+            placeholder="9XXXXXXXXX"
+            [(ngModel)]="gcashNumber"
+            inputmode="numeric"
+          ></ion-input>
+        </ion-item>
+      </ng-container>
+
+      <ng-container *ngIf="kind === 'card'">
+        <ion-item lines="none" class="field">
+          <ion-input
+            label="Card number"
+            labelPlacement="floating"
+            placeholder="4242 4242 4242 4242"
+            [(ngModel)]="cardNumber"
+            inputmode="numeric"
+          ></ion-input>
+        </ion-item>
+        <ion-item lines="none" class="field">
+          <ion-input
+            label="Cardholder name"
+            labelPlacement="floating"
+            [(ngModel)]="cardName"
+          ></ion-input>
+        </ion-item>
+      </ng-container>
+
+      <ion-button expand="block" class="red-btn" (click)="save()">Save method</ion-button>
+      <p class="fine">
+        We store a masked reference only (last 4 digits). Full numbers and CVV
+        are never saved — matching PCI-DSS basics.
+      </p>
+    </div>
+
+    <ion-button
+      *ngIf="!adding"
+      expand="block"
+      fill="outline"
+      class="add-btn"
+      (click)="toggleAdd()"
+    >
+      <ion-icon slot="start" name="add-outline"></ion-icon>
+      Add payment method
+    </ion-button>
+    <ion-button *ngIf="adding" fill="clear" expand="block" (click)="toggleAdd()">
+      Cancel
+    </ion-button>
+  </section>
+</ion-content>

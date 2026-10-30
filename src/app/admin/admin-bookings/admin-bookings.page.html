@@ -22,7 +22,7 @@
         </div>
         <div class="b-mid">
           <h3>{{ concertOf(b)?.name ?? 'Concert removed' }}</h3>
-          <p>{{ b.customerName }} · {{ b.customerEmail }}</p>
+          <p>{{ b.customerName }} · {{ b.customerEmail }} · {{ b.paidVia }}</p>
           <div class="tier-line">
             <span class="tier-tag">{{ b.tier }}</span>
             <span class="seat" *ngFor="let s of b.seats.slice(0, 5)">{{ s }}</span>

@@ -1,0 +1,226 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/concerts" *ngIf="step === 'select'"></ion-back-button>
+      <ion-button slot="start" *ngIf="step !== 'select' && step !== 'processing' && step !== 'success'" (click)="backToSelect()">
+        <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Checkout</ion-title>
+    <ion-note slot="end" class="secure-tag">🔒 SECURE</ion-note>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- Order summary -->
+  <div class="summary card-lg" *ngIf="concert">
+    <p class="card-label">Order</p>
+    <div class="order-line">
+      <span class="name">{{ concert.name }}</span>
+      <span class="sub">{{ dateLabel(concert.date) }} · {{ concert.time }}
+        · {{ concert.venue }}</span>
+    </div>
+    <div class="order-line">
+      <span class="name">{{ tierName }}</span>
+      <span class="seat-chips">
+        <span class="seat-chip" *ngFor="let s of seats">{{ s }}</span>
+      </span>
+    </div>
+    <div class="total-row">
+      <span>Total</span>
+      <span class="total">{{ total() | currency: 'PHP' : 'symbol-narrow' }}</span>
+    </div>
+  </div>
+
+  <!-- Receiver identity bar -->
+  <div class="receiver card-lg" *ngIf="step !== 'success'">
+    <div class="receiver-ava">
+      <ion-icon name="shield-checkmark-outline"></ion-icon>
+    </div>
+    <div class="receiver-info">
+      <strong>{{ merchant.name }}</strong>
+      <span>{{ merchant.scope }} · {{ merchant.tag }}</span>
+    </div>
+    <ion-chip class="ver-chip">Verified</ion-chip>
+  </div>
+
+  <!-- STEP 1 · method select -->
+  <ng-container *ngIf="step === 'select'">
+    <div class="section-title"><span class="step">1</span><h3>Payment method</h3></div>
+
+    <div class="method-list">
+      <div class="method-row" *ngFor="let o of options" (click)="choose(o)">
+        <div class="m-icon"><ion-icon [name]="o.icon"></ion-icon></div>
+        <div class="m-info">
+          <h4>{{ o.name }}</h4>
+          <p>{{ o.sub }}</p>
+        </div>
+        <span class="m-badge" *ngIf="o.badge">{{ o.badge }}</span>
+        <ion-icon class="chev" name="chevron-forward-outline"></ion-icon>
+      </div>
+    </div>
+
+    <p class="fine">
+      Payments are settled only to the verified receiver above. Card numbers
+      are validated with Luhn and never fully stored.
+    </p>
+  </ng-container>
+
+  <!-- STEP 2 · method-specific panel -->
+  <ng-container *ngIf="step === 'pay' && selected">
+
+    <!-- GCash -->
+    <ng-container *ngIf="selected.kind === 'gcash'">
+      <div class="section-title"><span class="step">2</span><h3>Pay with GCash</h3></div>
+      <div class="pay-panel card-lg">
+        <div class="gcash-brand">GCash</div>
+        <p class="panel-line">
+          Paying
+          <strong>{{ total() | currency: 'PHP' : 'symbol-narrow' }}</strong>
+          to <strong>{{ merchant.name }}</strong>
+          {{ savedGcash() ? 'using ' + savedGcash()?.detail : '' }}
+        </p>
+        <ion-button *ngIf="!gcashOpened" expand="block" class="red-btn" (click)="openGcashApp()">
+          Open GCash app
+        </ion-button>
+        <ng-container *ngIf="gcashOpened">
+          <p class="hint">If the GCash app didn't open (browser preview), confirm below.</p>
+          <ion-button expand="block" class="red-btn" (click)="gcashConfirmPaid()">
+            I paid — confirm payment
+          </ion-button>
+        </ng-container>
+      </div>
+    </ng-container>
+
+    <!-- Debit / credit card -->
+    <ng-container *ngIf="selected.kind === 'card'">
+      <div class="section-title"><span class="step">2</span><h3>Debit / credit card</h3></div>
+      <div class="pay-panel card-lg">
+        <ion-item lines="none" class="field">
+          <ion-input
+            label="Card number"
+            labelPlacement="floating"
+            placeholder="4242 4242 4242 4242"
+            [(ngModel)]="cardNumber"
+            inputmode="numeric"
+          ></ion-input>
+        </ion-item>
+        <ion-item lines="none" class="field">
+          <ion-input
+            label="Cardholder name"
+            labelPlacement="floating"
+            [(ngModel)]="cardName"
+          ></ion-input>
+        </ion-item>
+        <div class="row-2">
+          <ion-item lines="none" class="field">
+            <ion-input
+              label="Expiry"
+              labelPlacement="floating"
+              placeholder="MM/YY"
+              [(ngModel)]="cardExp"
+            ></ion-input>
+          </ion-item>
+          <ion-item lines="none" class="field">
+            <ion-input
+              label="CVV"
+              labelPlacement="floating"
+              placeholder="123"
+              [(ngModel)]="cardCvv"
+              type="password"
+              inputmode="numeric"
+            ></ion-input>
+          </ion-item>
+        </div>
+        <ion-button expand="block" class="red-btn" (click)="cardPay()">
+          Pay {{ total() | currency: 'PHP' : 'symbol-narrow' }}
+        </ion-button>
+        <p class="fine">
+          CVV is used once for authorisation and never saved. Your bank may send an OTP.
+        </p>
+      </div>
+    </ng-container>
+
+    <!-- QR -->
+    <ng-container *ngIf="selected.kind === 'qr'">
+      <div class="section-title"><span class="step">2</span><h3>Pay via QR</h3></div>
+      <div class="pay-panel card-lg qr-panel">
+        <div class="qr-frame">
+          <img
+            *ngIf="!qrBroken"
+            [src]="qrImage()"
+            alt="VIBETIX payment QR"
+            (error)="qrBroken = true"
+          />
+          <div class="qr-fallback" *ngIf="qrBroken">
+            <ion-icon name="qr-code-outline"></ion-icon>
+            <span>QR unavailable offline — use code below</span>
+            <strong>{{ qrPayload() }}</strong>
+          </div>
+        </div>
+        <p class="panel-line center">
+          Scan with GCash, Maya or your bank app. Payment is confirmed only when
+          the receiver matches <strong>{{ merchant.name }} ({{ merchant.tag }})</strong>.
+        </p>
+        <ion-button expand="block" class="red-btn" (click)="verifyQrPayment()">
+          {{ qrChecked ? 'I paid — verify receiver' : 'I will scan now' }}
+        </ion-button>
+      </div>
+    </ng-container>
+
+    <!-- Google Play -->
+    <ng-container *ngIf="selected.kind === 'play'">
+      <div class="section-title"><span class="step">2</span><h3>Google Play billing</h3></div>
+      <div class="pay-panel card-lg play-panel">
+        <div class="play-dialog">
+          <div class="play-head">
+            <ion-icon name="logo-google-play"></ion-icon>
+            <span>Google Play</span>
+          </div>
+          <div class="play-line">
+            <span>VIBETIX · {{ concert?.name }} ({{ seats.length }} ticket{{ seats.length > 1 ? 's' : '' }})</span>
+            <strong>{{ total() | currency: 'PHP' : 'symbol-narrow' }}</strong>
+          </div>
+          <div class="play-line muted">
+            <span>Account</span>
+            <span>{{ auth.getSession()?.email }}</span>
+          </div>
+          <div class="play-note">In production this is billed through Play Store and verified by VIBETIX servers.</div>
+          <div class="play-actions">
+            <ion-button fill="outline" expand="block" (click)="backToSelect()">Cancel</ion-button>
+            <ion-button expand="block" class="red-btn" (click)="playConfirm()">Confirm</ion-button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <p class="fine">
+      Receiver: <strong>{{ merchant.name }}</strong> — funds settle to this
+      verified account only. This matches how every successful checkout works.
+    </p>
+  </ng-container>
+
+  <!-- STEP 3 · processing -->
+  <ng-container *ngIf="step === 'processing'">
+    <div class="center-state">
+      <div class="spinner"></div>
+      <h3>Verifying payment…</h3>
+      <p>Checking that funds went to {{ merchant.name }} ({{ merchant.tag }})</p>
+    </div>
+  </ng-container>
+
+  <!-- STEP 4 · success -->
+  <ng-container *ngIf="step === 'success'">
+    <div class="center-state success">
+      <div class="big-check"><ion-icon name="checkmark-outline"></ion-icon></div>
+      <h3>Payment confirmed! 🎉</h3>
+      <p>
+        Paid to {{ merchant.name }} via {{ payLabel() }}<br />
+        E-ticket code: <strong>{{ lastCode }}</strong>
+      </p>
+      <ion-button expand="block" class="red-btn" (click)="viewTickets()">
+        View my tickets
+      </ion-button>
+    </div>
+  </ng-container>
+</ion-content>
