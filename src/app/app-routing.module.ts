@@ -27,23 +27,19 @@ const routes: Routes = [
         (m) => m.ConcertDetailPageModule
       ),
   },
-  // Staff area. Staff example: staff@gmail.com
+  // Staff area with tab nav: Dashboard · Scan · Account. staff@gmail.com
   {
     path: 'staff',
     canActivate: [roleGuard(['staff', 'admin'])],
-    loadChildren: () => import('./staff/staff.module').then((m) => m.StaffPageModule),
+    loadChildren: () =>
+      import('./staff/staff-tabs.module').then((m) => m.StaffTabsPageModule),
   },
-  // Admin area. Admin example: admin@gmail.com
+  // Admin area with tab nav: Dashboard · Events · Bookings · Account. admin@gmail.com
   {
     path: 'admin',
     canActivate: [roleGuard(['admin'])],
-    loadChildren: () => import('./admin/admin.module').then((m) => m.AdminPageModule),
-  },
-  {
-    path: 'admin/concert-form',
-    canActivate: [roleGuard(['admin'])],
     loadChildren: () =>
-      import('./concert-form/concert-form.module').then((m) => m.ConcertFormPageModule),
+      import('./admin/admin-tabs.module').then((m) => m.AdminTabsPageModule),
   },
   {
     path: '',

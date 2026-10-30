@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
 import { Booking, BookingService } from '../services/booking.service';
@@ -21,7 +20,6 @@ export class StaffPage {
     private bookingService: BookingService,
     private concertService: ConcertService,
     private auth: AuthService,
-    private router: Router,
     private toastCtrl: ToastController
   ) {}
 
@@ -34,13 +32,17 @@ export class StaffPage {
     return this.bookingService.stats();
   }
 
+  recent(): Booking[] {
+    return this.bookings.filter((b) => b.status === 'checked-in').slice(0, 5);
+  }
+
   filtered(): Booking[] {
     const term = this.search.trim().toLowerCase();
     if (!term) {
       return this.bookings;
     }
     return this.bookings.filter((b) =>
-      [b.ticketCode, b.customerName, b.customerEmail, this.concertOf(b)?.name, this.concertOf(b)?.venue]
+      [b.ticketCode, b.customerName, b.customerEmail, this.concertOf(b)?.name, this.concertOf(b)?.venue, b.tier]
         .join(' ')
         .toLowerCase()
         .includes(term)
@@ -66,17 +68,12 @@ export class StaffPage {
     this.bookingService.checkIn(booking.id);
     this.bookings = this.bookingService.getAll();
     const toast = await this.toastCtrl.create({
-      message: `${booking.ticketCode} checked in · ${booking.quantity} ticket(s)`,
+      message: `${booking.ticketCode} checked in · seat(s) ${booking.seats.join(', ')}`,
       duration: 2000,
       position: 'top',
-      color: 'success',
+      color: 'dark',
       icon: 'checkmark-circle-outline',
     });
     await toast.present();
-  }
-
-  async logout(): Promise<void> {
-    this.auth.logout();
-    this.router.navigate(['/login'], { replaceUrl: true });
   }
 }

@@ -2,17 +2,17 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular/lazy';
 import { FormsModule } from '@angular/forms';
-import { AdminPage } from './admin.page';
+import { AdminEventsPage } from './admin-events.page';
 
-import { AdminPageRoutingModule } from './admin-routing.module';
+import { AdminEventsPageRoutingModule } from './admin-events-routing.module';
 
 @NgModule({
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    AdminPageRoutingModule,
+    AdminEventsPageRoutingModule,
   ],
-  declarations: [AdminPage],
+  declarations: [AdminEventsPage],
 })
-export class AdminPageModule {}
+export class AdminEventsPageModule {}

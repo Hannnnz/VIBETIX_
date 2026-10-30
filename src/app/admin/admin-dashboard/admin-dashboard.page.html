@@ -1,0 +1,65 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Dashboard</ion-title>
+    <ion-note slot="end" class="tag">OVERVIEW</ion-note>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="stats">
+    <div class="stat">
+      <span class="num">{{ concertCount() }}</span>
+      <span class="lbl">Events</span>
+    </div>
+    <div class="stat">
+      <span class="num">{{ stats().bookings }}</span>
+      <span class="lbl">Bookings</span>
+    </div>
+    <div class="stat">
+      <span class="num">{{ stats().tickets }}</span>
+      <span class="lbl">Seats sold</span>
+    </div>
+    <div class="stat">
+      <span class="num red">
+        {{ stats().revenue | currency: 'PHP' : 'symbol-narrow' }}
+      </span>
+      <span class="lbl">Revenue</span>
+    </div>
+  </div>
+
+  <div class="card-lg" *ngIf="nextShow()">
+    <p class="card-label">Next show</p>
+    <div class="next">
+      <div class="next-cover" [class]="'next-cover g' + nextShow()?.color">
+        {{ nextShow()?.emoji }}
+      </div>
+      <div>
+        <h3>{{ nextShow()?.name }}</h3>
+        <p>{{ nextShow()?.artist }}</p>
+        <p class="strong">
+          {{ dateLabel(nextShow()?.date ?? '') }} · {{ nextShow()?.time }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-lg">
+    <p class="card-label">Seats sold by ticket type</p>
+    <div class="bar" *ngFor="let b of tierBars()">
+      <span class="bar-label">{{ b.tier }}</span>
+      <div class="bar-track">
+        <div class="bar-fill" [style.width.%]="b.pct"></div>
+      </div>
+      <span class="bar-num">{{ b.count }}</span>
+    </div>
+  </div>
+
+  <p class="section-label">Recent bookings</p>
+  <section class="recents">
+    <div class="recent-row" *ngFor="let b of recent()">
+      <span class="code">{{ b.ticketCode }}</span>
+      <span class="name">{{ b.customerName }} · {{ concertOf(b)?.name }}</span>
+      <span class="amt">{{ b.total | currency: 'PHP' : 'symbol-narrow' }}</span>
+    </div>
+  </section>
+</ion-content>

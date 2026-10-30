@@ -12,6 +12,10 @@ export interface Booking {
   concertId: string;
   customerEmail: string;
   customerName: string;
+  /** Ticket class bought, e.g. VIP, SVIP, Gen Ad. */
+  tier: string;
+  /** Actual seat codes picked on the seat map, e.g. ['A4', 'A5']. */
+  seats: string[];
   quantity: number;
   total: number;
   status: BookingStatus;
@@ -26,8 +30,10 @@ const SEED: Booking[] = [
     concertId: 'c1',
     customerEmail: 'user@gmail.com',
     customerName: 'Juan Customer',
+    tier: 'VIP',
+    seats: ['A4', 'A5'],
     quantity: 2,
-    total: 3600,
+    total: 7200,
     status: 'checked-in',
     createdAt: '2026-10-20T09:00:00.000Z',
   },
@@ -37,8 +43,10 @@ const SEED: Booking[] = [
     concertId: 'c2',
     customerEmail: 'user@gmail.com',
     customerName: 'Juan Customer',
+    tier: 'Lower Box',
+    seats: ['B7'],
     quantity: 1,
-    total: 3200,
+    total: 4800,
     status: 'active',
     createdAt: '2026-10-25T14:30:00.000Z',
   },
@@ -48,8 +56,10 @@ const SEED: Booking[] = [
     concertId: 'c5',
     customerEmail: 'user@gmail.com',
     customerName: 'Juan Customer',
+    tier: 'SVIP',
+    seats: ['A1', 'A2', 'A3'],
     quantity: 3,
-    total: 13500,
+    total: 40500,
     status: 'active',
     createdAt: '2026-10-28T11:15:00.000Z',
   },
@@ -72,15 +82,23 @@ export class BookingService {
     return `VTX-${suffix}`;
   }
 
-  create(concert: Concert, quantity: number, session: Session): Booking {
+  create(
+    concert: Concert,
+    tier: string,
+    unitPrice: number,
+    seats: string[],
+    session: Session
+  ): Booking {
     const booking: Booking = {
       id: 'b' + Date.now(),
       ticketCode: this.newTicketCode(),
       concertId: concert.id,
       customerEmail: session.email,
       customerName: session.name,
-      quantity,
-      total: concert.price * quantity,
+      tier,
+      seats: [...seats],
+      quantity: seats.length,
+      total: unitPrice * seats.length,
       status: 'active',
       createdAt: new Date().toISOString(),
     };
@@ -94,6 +112,11 @@ export class BookingService {
 
   getBookingsFor(email: string): Booking[] {
     return this.getAll().filter((b) => b.customerEmail === email);
+  }
+
+  findByTicketCode(code: string): Booking | undefined {
+    const normalized = code.trim().toUpperCase();
+    return this.bookings.find((b) => b.ticketCode === normalized);
   }
 
   /** Marks a ticket as used / scanned at the venue gate. */
@@ -113,5 +136,15 @@ export class BookingService {
       checkedIn: this.bookings.filter((b) => b.status === 'checked-in').length,
       revenue: this.bookings.reduce((sum, b) => sum + b.total, 0),
     };
+  }
+
+  /** Seats sold per ticket class, for the admin dashboard bars. */
+  seatsPerTier(tiers: string[]): { tier: string; count: number }[] {
+    return tiers.map((tier) => ({
+      tier,
+      count: this.bookings
+        .filter((b) => b.tier === tier)
+        .reduce((sum, b) => sum + b.quantity, 0),
+    }));
   }
 }

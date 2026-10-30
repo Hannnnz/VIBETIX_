@@ -10,12 +10,13 @@
 <ion-content [fullscreen]="true" *ngIf="concert; else notFound">
   <div [class]="'cover detail-cover g' + concert.color">
     <span class="cover-emoji">{{ concert.emoji }}</span>
+    <div class="cover-caption">
+      <h2>{{ concert.name }}</h2>
+      <p>{{ concert.artist }}</p>
+    </div>
   </div>
 
   <section class="detail-body">
-    <h1>{{ concert.name }}</h1>
-    <p class="subtitle">{{ concert.artist }} · {{ concert.genre }}</p>
-
     <div class="info-grid">
       <div class="info-cell">
         <ion-icon name="calendar-outline"></ion-icon>
@@ -29,33 +30,108 @@
         <ion-icon name="location-outline"></ion-icon>
         <span>{{ concert.venue }}</span>
       </div>
+      <div class="info-cell">
+        <ion-icon name="musical-notes-outline"></ion-icon>
+        <span>{{ concert.genre }}</span>
+      </div>
     </div>
 
     <p class="description">{{ concert.description }}</p>
 
-    <div class="ticket-box">
-      <div class="qty-row">
-        <span class="qty-label">Number of tickets</span>
-        <div class="stepper">
-          <ion-button fill="clear" size="small" (click)="changeQuantity(-1)"
-            >−</ion-button
-          >
-          <span class="qty">{{ quantity }}</span>
-          <ion-button fill="clear" size="small" (click)="changeQuantity(1)">+</ion-button>
-        </div>
-      </div>
+    <!-- Step 1 · ticket class -->
+    <div class="section-title">
+      <span class="step">1</span>
+      <h3>Choose ticket type</h3>
+    </div>
 
-      <div class="total-row">
-        <span>Total</span>
-        <span class="total">
-          {{ total() | currency: 'PHP' : 'symbol-narrow' }}
+    <div class="tier-list">
+      <div
+        class="tier-row"
+        *ngFor="let t of tiers"
+        [class.selected]="selectedTier?.name === t.name"
+        (click)="chooseTier(t)"
+      >
+        <div class="tier-radio"></div>
+        <div class="tier-info">
+          <h4>{{ t.name }}</h4>
+          <p>{{ t.perks }}</p>
+        </div>
+        <span class="tier-price">
+          {{ t.price | currency: 'PHP' : 'symbol-narrow' }}
         </span>
       </div>
+    </div>
 
-      <ion-button expand="block" class="buy-btn" (click)="buy()">
-        Buy tickets
+    <!-- Step 2 · seat map -->
+    <div class="section-title" *ngIf="selectedTier">
+      <span class="step">2</span>
+      <h3>Pick your seats · {{ selectedTier.name }}</h3>
+    </div>
+
+    <div class="seat-map" *ngIf="selectedTier">
+      <div class="stage">STAGE</div>
+
+      <div class="seat-legend">
+        <span class="legend-item"><i class="seat dot-available"></i> Available</span>
+        <span class="legend-item"><i class="seat dot-taken"></i> Taken</span>
+        <span class="legend-item"><i class="seat dot-selected"></i> Yours</span>
+      </div>
+
+      <div class="seat-grid">
+        <div class="seat-row" *ngFor="let row of rows">
+          <span class="row-label">{{ row }}</span>
+          <button
+            type="button"
+            class="seat"
+            *ngFor="let col of cols"
+            [class.selected]="isSelected(row + col)"
+            [class.taken]="isTaken(row + col)"
+            [disabled]="isTaken(row + col)"
+            (click)="toggleSeat(row + col)"
+          >
+            {{ col }}
+          </button>
+          <span class="row-label">{{ row }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 · review & pay -->
+    <div class="section-title">
+      <span class="step">3</span>
+      <h3>Summary</h3>
+    </div>
+
+    <div class="summary card-lg">
+      <div class="summary-row">
+        <span>Seats</span>
+        <span class="seats-chips" *ngIf="seats().length">
+          <span class="seat-chip" *ngFor="let s of seats()">{{ s }}</span>
+        </span>
+        <span class="muted" *ngIf="!seats().length">none selected</span>
+      </div>
+      <div class="summary-row">
+        <span>Type &amp; price</span>
+        <span *ngIf="selectedTier" class="muted">
+          {{ selectedTier.name }} ·
+          {{ selectedTier.price | currency: 'PHP' : 'symbol-narrow' }} each
+        </span>
+        <span class="muted" *ngIf="!selectedTier">not picked</span>
+      </div>
+      <div class="total-row">
+        <span>Total</span>
+        <span class="total">{{ total() | currency: 'PHP' : 'symbol-narrow' }}</span>
+      </div>
+
+      <ion-button
+        expand="block"
+        class="buy-btn"
+        [disabled]="!selectedTier || seats().length === 0"
+        (click)="buy()"
+      >
+        {{ seats().length ? 'Buy ' + seats().length + ' seat(s)' : 'Buy tickets' }}
       </ion-button>
-      <p class="buy-note">E-ticket &amp; ticket code generated instantly.</p>
+      <p class="buy-note">E-ticket with QR valid for entry is generated instantly.</p>
     </div>
   </section>
 </ion-content>
@@ -65,7 +141,7 @@
     <div class="empty">
       <ion-icon name="alert-circle-outline"></ion-icon>
       <p>Concert not found.</p>
-      <ion-button fill="clear" href="/tabs/concerts">Back to Explore</ion-button>
+      <ion-button fill="clear" routerLink="/tabs/concerts">Back to Explore</ion-button>
     </div>
   </ion-content>
 </ng-template>

@@ -1,0 +1,104 @@
+import { Component } from '@angular/core';
+import { ToastController } from '@ionic/angular/lazy';
+
+import { Booking, BookingService } from '../../services/booking.service';
+import { Concert, ConcertService } from '../../services/concert.service';
+
+interface ScanResult {
+  state: 'success' | 'invalid' | 'already-used' | 'none';
+  booking?: Booking;
+}
+
+@Component({
+  selector: 'app-scan',
+  templateUrl: './scan.page.html',
+  styleUrls: ['./scan.page.scss'],
+  standalone: false,
+})
+export class ScanPage {
+  manualCode = '';
+  /** null while the scanner is "live" */
+  result: ScanResult | null = null;
+  lastGoodCode: string | null = null;
+
+  constructor(
+    private bookingService: BookingService,
+    private concertService: ConcertService,
+    private toastCtrl: ToastController
+  ) {}
+
+  concertOf(booking: Booking): Concert | undefined {
+    return this.concertService.getById(booking.concertId);
+  }
+
+  dateLabel(date: string): string {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
+
+  /**
+   * Point the staff camera at the customer's e-ticket code.
+   * Camera/QR hardware is not wired up in this frontend demo,
+   * so scanning can also be simulated from the demo button.
+   */
+  scanCode(input: string): void {
+    const code = input.trim();
+    if (!code) {
+      return;
+    }
+    const booking = this.bookingService.findByTicketCode(code);
+    if (!booking) {
+      this.result = { state: 'invalid' };
+      return;
+    }
+    this.manualCode = code;
+    this.result =
+      booking.status === 'active'
+        ? { state: 'success', booking }
+        : { state: 'already-used', booking };
+  }
+
+  /** Demo button: pretends a customer just walked up with a valid ticket. */
+  simulateScan(): void {
+    const active = this.bookingService.getAll().filter((b) => b.status === 'active');
+    if (!active.length) {
+      this.toast('No pending tickets to scan — all checked in.');
+      return;
+    }
+    const pick = active[Math.floor(Math.random() * active.length)];
+    this.scanCode(pick.ticketCode);
+  }
+
+  confirmCheckIn(): void {
+    const booking = this.result?.booking;
+    if (!booking) {
+      return;
+    }
+    this.bookingService.checkIn(booking.id);
+    this.result = { state: 'already-used', booking };
+    this.lastGoodCode = booking.ticketCode;
+    this.toast(
+      `Gate cleared:\n${booking.ticketCode} · ${booking.tier} · seat(s) ${booking.seats.join(', ')}`
+    );
+  }
+
+  /** Right-swipe result away / clear button to use the scanner again. */
+  resetScan(): void {
+    this.result = null;
+    this.manualCode = '';
+  }
+
+  private async toast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2600,
+      position: 'top',
+      color: 'dark',
+      icon: 'scan-outline',
+    });
+    await toast.present();
+  }
+}

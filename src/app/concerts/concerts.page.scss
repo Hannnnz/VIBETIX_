@@ -7,65 +7,47 @@
   margin: 12px 16px 4px;
   padding: 18px 20px;
   border-radius: 18px;
-  background: linear-gradient(120deg, #7b5bff 0%, #b45bff 60%, #ff6ec7 100%);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-left: 3px solid var(--app-red);
   color: #fff;
-  box-shadow: 0 10px 30px rgba(123, 91, 255, 0.35);
   animation: fadeUp 0.5s ease-out both;
 
-  /* sweeping light streak */
-  &::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -30%;
-    width: 40%;
-    height: 200%;
-    transform: rotate(20deg);
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.28),
-      transparent
-    );
-    animation: promoStreak 3.5s ease-in-out infinite;
-  }
-
   .promo-small {
-    margin: 0 0 2px;
-    font-size: 12px;
-    letter-spacing: 1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 4px;
+    font-size: 11px;
+    letter-spacing: 2px;
     text-transform: uppercase;
-    opacity: 0.85;
+    color: var(--app-red);
+    font-weight: 800;
   }
 
   h2 {
     margin: 0;
-    font-size: 18px;
-    font-weight: 800;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ion-text-color);
   }
 
-  .promo-emoji {
-    position: relative;
-    z-index: 1;
-    font-size: 34px;
-    animation: floaty 4s ease-in-out infinite;
+  .live-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--app-red);
+    animation: livePulse 1.6s ease-in-out infinite;
   }
 }
 
-@keyframes promoStreak {
-  0% {
-    left: -30%;
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  55% {
-    opacity: 1;
-  }
+@keyframes livePulse {
+  0%,
   100% {
-    left: 120%;
-    opacity: 0;
+    box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(229, 9, 20, 0);
   }
 }
 
@@ -99,7 +81,7 @@
       right: 10px;
       padding: 4px 10px;
       border-radius: 999px;
-      background: rgba(0, 0, 0, 0.35);
+      background: rgba(10, 10, 10, 0.55);
       color: #fff;
       font-size: 12px;
       font-weight: 600;
@@ -114,13 +96,14 @@
 
   ion-card-subtitle {
     font-weight: 600;
+    color: var(--ion-color-step-300, #9a9a9a);
   }
 
   .meta {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--ion-color-step-300, #9d9db8);
+    color: var(--ion-color-step-300, #9a9a9a);
     font-size: 13px;
 
     ion-icon {
@@ -137,7 +120,7 @@
     .price {
       font-size: 18px;
       font-weight: 800;
-      color: var(--ion-color-primary);
+      color: var(--ion-text-color);
     }
 
     .cta {
@@ -146,7 +129,7 @@
       gap: 4px;
       font-size: 13px;
       font-weight: 700;
-      color: var(--ion-color-primary);
+      color: var(--app-red);
     }
   }
 }
@@ -154,7 +137,7 @@
 .empty {
   padding: 40px 0;
   text-align: center;
-  color: var(--ion-color-step-300, #9d9db8);
+  color: var(--ion-color-step-300, #9a9a9a);
 
   ion-icon {
     font-size: 42px;

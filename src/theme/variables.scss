@@ -2,40 +2,41 @@
 // https://ionicframework.com/docs/theming/
 
 /* =========================================================
-   VIBETIX theme — dark, neon-purple concert vibe
+   VIBETIX theme — premium black / white / red
    ========================================================= */
 
 :root {
-  /* Primary — electric purple */
-  --ion-color-primary: #7b5bff;
-  --ion-color-primary-rgb: 123, 91, 255;
+  /* Primary — premium signature red */
+  --ion-color-primary: #e50914;
+  --ion-color-primary-rgb: 229, 9, 20;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #6c50e0;
-  --ion-color-primary-tint: #887bff;
+  --ion-color-primary-shade: #ca0812;
+  --ion-color-primary-tint: #e92f39;
 
-  /* App always runs in dark "stage light" mode */
-  --ion-background-color: #0b0b1a;
-  --ion-background-color-rgb: 11, 11, 26;
-  --ion-text-color: #f2f2fa;
-  --ion-text-color-rgb: 242, 242, 250;
+  /* Near-black canvas */
+  --ion-background-color: #0a0a0a;
+  --ion-background-color-rgb: 10, 10, 10;
+  --ion-text-color: #f5f5f5;
+  --ion-text-color-rgb: 245, 245, 245;
 
-  --ion-toolbar-background: rgba(11, 11, 26, 0.6);
-  --ion-card-background: rgba(22, 22, 52, 0.72);
-  --ion-item-background: rgba(22, 22, 52, 0.6);
-  --ion-tab-bar-background: rgba(16, 16, 43, 0.72);
+  --ion-toolbar-background: rgba(10, 10, 10, 0.75);
+  --ion-card-background: rgba(17, 17, 17, 0.72);
+  --ion-item-background: rgba(17, 17, 17, 0.6);
+  --ion-tab-bar-background: rgba(12, 12, 12, 0.85);
   --ion-border-color: rgba(255, 255, 255, 0.08);
 
-  /* App-specific custom tokens (semi-transparent for the glassy look) */
-  --app-surface: rgba(22, 22, 52, 0.72);
+  /* App-specific custom tokens */
+  --app-surface: rgba(17, 17, 17, 0.75);
   --app-border: rgba(255, 255, 255, 0.09);
+  --app-red: #e50914;
 }
 
 /* Neutral grays used by Ionic for step colors on dark backgrounds */
 :root {
-  --ion-color-step-100: #1c1c2f;
-  --ion-color-step-200: #b9b9ce;
-  --ion-color-step-300: #9d9db8;
-  --ion-color-step-400: #8082a2;
-  --ion-color-step-500: #63688c;
+  --ion-color-step-100: #171717;
+  --ion-color-step-200: #b9b9b9;
+  --ion-color-step-300: #9a9a9a;
+  --ion-color-step-400: #7a7a7a;
+  --ion-color-step-500: #5c5c5c;
 }

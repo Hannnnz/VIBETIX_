@@ -90,10 +90,10 @@ export class AuthService {
   get roleHome(): string {
     const role = this.session?.role;
     if (role === 'admin') {
-      return '/admin';
+      return '/admin/dashboard';
     }
     if (role === 'staff') {
-      return '/staff';
+      return '/staff/dashboard';
     }
     return '/tabs/concerts';
   }

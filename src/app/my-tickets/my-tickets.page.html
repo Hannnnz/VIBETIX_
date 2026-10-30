@@ -7,7 +7,7 @@
 <ion-content [fullscreen]="true">
   <section class="tickets">
     <ion-card class="ticket-card" *ngFor="let b of bookings">
-      <div [class]="'ticket-side g' + (concertOf(b)?.color ?? 1)">
+      <div class="ticket-side" [class.used]="b.status === 'checked-in'">
         <span class="side-emoji">{{ concertOf(b)?.emoji }}</span>
       </div>
 
@@ -15,16 +15,27 @@
         <div class="top">
           <div>
             <h3>{{ concertOf(b)?.name }}</h3>
-            <p>{{ dateLabel(concertOf(b)?.date ?? b.createdAt) }}
+            <p>
+              {{ dateLabel(concertOf(b)?.date ?? b.createdAt) }}
               · {{ concertOf(b)?.time }}
             </p>
           </div>
           <ion-chip
             class="status-chip"
-            [class.checked]="b.status === 'checked-in'"
+            [class.used]="b.status === 'checked-in'"
           >
-            {{ b.status === 'checked-in' ? 'Checked in' : 'Valid' }}
+            {{ b.status === 'checked-in' ? 'Attended' : 'Valid' }}
           </ion-chip>
+        </div>
+
+        <div class="tier-row">
+          <ion-chip class="tier-chip">
+            {{ b.tier }}
+          </ion-chip>
+          <div class="seats">
+            <span class="seat-mini" *ngFor="let s of b.seats.slice(0, 4)">{{ s }}</span>
+            <span class="seat-more" *ngIf="b.seats.length > 4">+{{ b.seats.length - 4 }}</span>
+          </div>
         </div>
 
         <div class="code-row">

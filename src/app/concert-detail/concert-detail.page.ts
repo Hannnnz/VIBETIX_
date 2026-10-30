@@ -6,6 +6,12 @@ import { Concert, ConcertService } from '../services/concert.service';
 import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 
+interface TicketTier {
+  name: string;
+  price: number;
+  perks: string;
+}
+
 @Component({
   selector: 'app-concert-detail',
   templateUrl: './concert-detail.page.html',
@@ -14,7 +20,16 @@ import { AuthService } from '../services/auth.service';
 })
 export class ConcertDetailPage implements OnInit {
   concert: Concert | undefined;
-  quantity = 1;
+  tiers: TicketTier[] = [];
+  selectedTier: TicketTier | null = null;
+
+  /** Seat map: 4 rows × 8 seats, some already taken */
+  rows = ['A', 'B', 'C', 'D'];
+  cols = [1, 2, 3, 4, 5, 6, 7, 8];
+  taken = new Set<string>();
+  selected = new Set<string>();
+
+  private maxSeats = 6;
 
   constructor(
     private route: ActivatedRoute,
@@ -32,14 +47,70 @@ export class ConcertDetailPage implements OnInit {
   load(): void {
     const id = this.route.snapshot.paramMap.get('id');
     this.concert = this.concertService.getById(id || '');
+    if (this.concert) {
+      const base = this.concert.price;
+      this.tiers = [
+        { name: 'Gen Ad', price: base, perks: 'Free seating section' },
+        { name: 'Upper Box', price: Math.round(base * 1.25), perks: 'Reserved seat, elevated view' },
+        { name: 'Lower Box', price: Math.round(base * 1.5), perks: 'Reserved seat, closer stage' },
+        { name: 'VIP', price: Math.round(base * 2), perks: 'Premium seated area + VIP lane' },
+        { name: 'SVIP', price: Math.round(base * 3), perks: 'Front zone + artist merch pack' },
+      ];
+      // pre-seed an untaken map; user picks a tier first
+      this.taken = new Set<string>();
+      this.selected = new Set<string>();
+    }
   }
 
-  changeQuantity(delta: number): void {
-    this.quantity = Math.min(10, Math.max(1, this.quantity + delta));
+  chooseTier(tier: TicketTier): void {
+    this.selectedTier = tier;
+    this.selected = new Set<string>();
+    this.taken = this.generateTakenSeats();
+  }
+
+  /** ~1/3 of seats are already sold */
+  private generateTakenSeats(): Set<string> {
+    const taken = new Set<string>();
+    while (taken.size < 12) {
+      const row = this.rows[Math.floor(Math.random() * this.rows.length)];
+      const col = 1 + Math.floor(Math.random() * this.cols.length);
+      taken.add(`${row}${col}`);
+    }
+    return taken;
+  }
+
+  toggleSeat(seat: string): void {
+    if (!this.selectedTier) {
+      return;
+    }
+    if (this.taken.has(seat)) {
+      return;
+    }
+    if (!this.selected.has(seat) && this.selected.size >= this.maxSeats) {
+      this.toast(`Up to ${this.maxSeats} seats per booking.`);
+      return;
+    }
+    if (this.selected.has(seat)) {
+      this.selected.delete(seat);
+    } else {
+      this.selected.add(seat);
+    }
+  }
+
+  isSelected(seat: string): boolean {
+    return this.selected.has(seat);
+  }
+
+  isTaken(seat: string): boolean {
+    return this.taken.has(seat);
+  }
+
+  seats(): string[] {
+    return [...this.selected].sort();
   }
 
   total(): number {
-    return (this.concert?.price ?? 0) * this.quantity;
+    return (this.selectedTier?.price ?? 0) * this.selected.size;
   }
 
   dateLabel(date: string): string {
@@ -56,15 +127,35 @@ export class ConcertDetailPage implements OnInit {
     if (!session || !this.concert) {
       return;
     }
-    const booking = this.bookingService.create(this.concert, this.quantity, session);
+    if (!this.selectedTier || this.selected.size === 0) {
+      this.toast('Pick a ticket type and your seats first.');
+      return;
+    }
+    const booking = this.bookingService.create(
+      this.concert,
+      this.selectedTier.name,
+      this.selectedTier.price,
+      this.seats(),
+      session
+    );
     const toast = await this.toastCtrl.create({
-      message: `Tickets bought! Code: ${booking.ticketCode}`,
+      message: `${booking.quantity} seat(s) booked · ${booking.ticketCode}`,
       duration: 2500,
       position: 'top',
-      color: 'success',
+      color: 'dark',
       icon: 'ticket-outline',
     });
     await toast.present();
     this.router.navigate(['/tabs/my-tickets']);
+  }
+
+  private async toast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 1800,
+      position: 'top',
+      color: 'dark',
+    });
+    await toast.present();
   }
 }

@@ -3,61 +3,68 @@
   --padding-end: 0;
 }
 
-/* Hero with floating music notes */
 .login-hero {
   position: relative;
   padding: 56px 24px 16px;
   text-align: center;
-  overflow: visible;
 
   .neon {
     margin: 0;
     font-size: 46px;
     font-weight: 900;
     letter-spacing: 7px;
-    background: linear-gradient(90deg, #8f7bff, #ff6ec7, #4facfe, #8f7bff);
-    background-size: 300% 100%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    filter: drop-shadow(0 0 18px rgba(123, 91, 255, 0.55));
-    animation: shimmerText 6s linear infinite;
+    color: #ffffff;
+    text-shadow:
+      0 0 26px rgba(229, 9, 20, 0.45),
+      0 2px 0 rgba(255, 255, 255, 0.08);
+    animation: breathe 5s ease-in-out infinite;
   }
 
   p {
     margin: 10px 0 0;
-    color: var(--ion-color-step-300, #9d9db8);
+    color: var(--ion-color-step-300, #9a9a9a);
     font-size: 15px;
     line-height: 1.5;
     animation: fadeUp 0.6s ease-out both;
   }
+
+  .flag {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 14px;
+    border-radius: 999px;
+    background: var(--app-red);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #fff;
+    text-transform: uppercase;
+  }
 }
 
-/* Floating notes drifting around the hero */
 .login-hero .note {
   position: absolute;
-  font-size: 22px;
-  opacity: 0.7;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25));
-  animation: floaty 5s ease-in-out infinite;
+  font-size: 20px;
+  opacity: 0.35;
+  filter: grayscale(0.6);
+  animation: floaty 6s ease-in-out infinite;
   pointer-events: none;
 
   &.n1 { top: 44px; left: 12%; animation-delay: 0s; }
   &.n2 { top: 90px; right: 10%; animation-delay: 0.9s; }
-  &.n3 { top: 130px; left: 6%; font-size: 18px; animation-delay: 1.7s; }
-  &.n4 { top: 30px; right: 22%; font-size: 16px; animation-delay: 2.4s; }
+  &.n3 { top: 130px; left: 6%; font-size: 16px; animation-delay: 1.7s; }
+  &.n4 { top: 30px; right: 22%; font-size: 14px; animation-delay: 2.4s; }
 }
 
-/* Glassy sign-in card */
 .form-wrap {
   margin: 22px 24px 0;
   padding: 22px 16px 24px;
   border-radius: 22px;
-  background: rgba(22, 22, 52, 0.66);
+  background: rgba(14, 14, 14, 0.8);
   border: 1px solid var(--app-border);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
   animation: fadeUp 0.55s ease-out 0.1s both;
 }
 
@@ -66,9 +73,7 @@
   border-radius: 12px;
   margin-bottom: 10px;
 
-  ion-input {
-    --color: var(--ion-text-color);
-  }
+  --border-color: var(--app-border);
 }
 
 .login-btn {
@@ -76,7 +81,7 @@
   height: 50px;
   font-weight: 800;
   letter-spacing: 1px;
-  animation: fadeUp 0.5s ease-out 0.18s both, pulseGlow 3s ease-in-out 0.6s infinite;
+  animation: fadeUp 0.5s ease-out 0.18s both, pulseGlow 3.2s ease-in-out 0.6s infinite;
 }
 
 .quick-accounts {
@@ -87,7 +92,7 @@
   .quick-label {
     margin: 0 0 6px;
     font-size: 11px;
-    color: var(--ion-color-step-300, #9d9db8);
+    color: var(--ion-color-step-300, #9a9a9a);
     text-transform: uppercase;
     letter-spacing: 2px;
   }
@@ -100,8 +105,8 @@
   }
 
   ion-chip {
-    background: rgba(123, 91, 255, 0.14);
-    border: 1px solid rgba(123, 91, 255, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--app-border);
     --color: var(--ion-text-color);
     transition: transform 0.15s ease;
 
@@ -116,22 +121,21 @@
   height: 10px;
   border-radius: 50%;
   margin-right: 4px;
-  animation: wiggle 2.5s ease-in-out infinite;
 
-  &.dot-admin { background: #ff6ec7; }
-  &.dot-staff { background: #4facfe; }
-  &.dot-customer { background: #2dd36f; }
+  &.dot-admin {
+    background: var(--app-red);
+  }
+  &.dot-staff {
+    background: #ffffff;
+  }
+  &.dot-customer {
+    background: #6a6a6a;
+  }
 }
 
 .sign-up-link {
   margin: 20px 0 0;
   text-align: center;
   font-size: 13px;
-  color: var(--ion-color-step-300, #9d9db8);
-
-  a {
-    color: var(--ion-color-primary);
-    font-weight: 700;
-    text-decoration: none;
-  }
+  color: var(--ion-color-step-300, #9a9a9a);
 }

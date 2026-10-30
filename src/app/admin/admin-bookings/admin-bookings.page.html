@@ -1,0 +1,45 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Bookings</ion-title>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Search code, customer, event"
+      [(ngModel)]="search"
+    ></ion-searchbar>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <section class="panel">
+    <ion-card class="b-card" *ngFor="let b of filtered()">
+      <ion-card-content class="b-body">
+        <div class="b-top">
+          <span class="code">{{ b.ticketCode }}</span>
+          <ion-chip class="status-chip" [class.used]="b.status === 'checked-in'">
+            {{ b.status === 'checked-in' ? 'Attended' : 'Valid' }}
+          </ion-chip>
+        </div>
+        <div class="b-mid">
+          <h3>{{ concertOf(b)?.name ?? 'Concert removed' }}</h3>
+          <p>{{ b.customerName }} · {{ b.customerEmail }}</p>
+          <div class="tier-line">
+            <span class="tier-tag">{{ b.tier }}</span>
+            <span class="seat" *ngFor="let s of b.seats.slice(0, 5)">{{ s }}</span>
+            <span class="more" *ngIf="b.seats.length > 5">+{{ b.seats.length - 5 }}</span>
+          </div>
+        </div>
+        <div class="b-bottom">
+          <span>{{ dateLabel(b.createdAt) }} ·
+            {{ b.quantity }} ticket{{ b.quantity > 1 ? 's' : '' }}</span>
+          <span class="total">{{ b.total | currency: 'PHP' : 'symbol-narrow' }}</span>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <div class="empty" *ngIf="filtered().length === 0">
+      <ion-icon name="reader-outline"></ion-icon>
+      <p>No bookings match "{{ search }}".</p>
+    </div>
+  </section>
+</ion-content>

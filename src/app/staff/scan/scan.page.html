@@ -1,0 +1,108 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Gate scanner</ion-title>
+    <ion-buttons slot="end">
+      <ion-button *ngIf="result" (click)="resetScan()">
+        <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- The "camera" -->
+  <div class="scanner" *ngIf="!result">
+    <div class="cam">
+      <div class="scan-line"></div>
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <span class="cam-note">Point at the customer's e-ticket code</span>
+    </div>
+
+    <div class="scan-actions">
+      <ion-button expand="block" class="red-btn" (click)="simulateScan()">
+        Simulate a customer ticket (demo)
+      </ion-button>
+
+      <div class="manual">
+        <ion-item lines="none" class="field">
+          <ion-input
+            label="Or type the code"
+            labelPlacement="floating"
+            placeholder="VTX-XXXXXX"
+            [(ngModel)]="manualCode"
+            (keyup.enter)="scanCode(manualCode)"
+          ></ion-input>
+        </ion-item>
+        <ion-button
+          expand="block"
+          fill="outline"
+          [disabled]="!manualCode.trim()"
+          (click)="scanCode(manualCode)"
+        >
+          Verify code
+        </ion-button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result after a scan -->
+  <section class="result" *ngIf="result">
+    <ion-card class="result-card" [class.err]="result.state !== 'success' && result.state !== 'already-used'">
+      <ion-card-content>
+        <div class="head">
+          <ion-chip class="verdict" [class.used]="result.state !== 'success'">
+            <ng-container [ngSwitch]="result.state">
+              <span *ngSwitchCase="'success'">VIP valid · Grant entry</span>
+              <span *ngSwitchCase="'invalid'">Code not found</span>
+              <span *ngSwitchCase="'already-used'">Already checked in</span>
+            </ng-container>
+          </ion-chip>
+        </div>
+
+        <ng-container *ngIf="result.booking">
+          <h3>{{ concertOf(result.booking)?.name ?? 'Concert removed' }}</h3>
+          <p>
+            {{ dateLabel(concertOf(result.booking)?.date ?? result.booking.createdAt) }}
+            · {{ concertOf(result.booking)?.time }}
+            · {{ concertOf(result.booking)?.venue }}
+          </p>
+
+          <div class="code-line">{{ result.booking.ticketCode }}</div>
+
+          <div class="chips">
+            <span class="chip dark">{{ result.booking.tier }}</span>
+            <span class="chip red" *ngFor="let s of result.booking.seats">{{ s }}</span>
+          </div>
+
+          <div class="meta">
+            <span>{{ result.booking.customerName }}</span>
+            <small>{{ result.booking.customerEmail }}</small>
+          </div>
+
+          <ion-button
+            *ngIf="result.state === 'success'"
+            expand="block"
+            class="red-btn"
+            (click)="confirmCheckIn()"
+          >
+            Confirm check-in
+          </ion-button>
+          <p class="done-note" *ngIf="result.state === 'already-used'">
+            This e-ticket has been used at the gate. Scan the next customer.
+          </p>
+        </ng-container>
+
+        <p class="invalid-note" *ngIf="result.state === 'invalid'">
+          Double-check the code with the customer. It should look like VTX-XXXXXX.
+        </p>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-button expand="block" fill="outline" class="again-btn" (click)="resetScan()">
+      Scan next customer
+    </ion-button>
+  </section>
+</ion-content>

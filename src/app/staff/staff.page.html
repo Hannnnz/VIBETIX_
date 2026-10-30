@@ -1,11 +1,7 @@
 <ion-header [translucent]="true" class="ion-no-border">
   <ion-toolbar>
-    <ion-title><span class="console-tag">STAFF CONSOLE</span></ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="logout()">
-        <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
+    <ion-title>Dashboard</ion-title>
+    <ion-note slot="end" class="gate-tag">GATE OPS</ion-note>
   </ion-toolbar>
   <ion-toolbar>
     <ion-searchbar
@@ -23,7 +19,7 @@
     </div>
     <div class="stat">
       <span class="num">{{ stats().tickets }}</span>
-      <span class="lbl">Tickets sold</span>
+      <span class="lbl">Tickets</span>
     </div>
     <div class="stat">
       <span class="num">{{ stats().checkedIn }}</span>
@@ -31,7 +27,18 @@
     </div>
   </div>
 
+  <div class="recent" *ngIf="recent().length">
+    <p class="section-label">Latest check-ins</p>
+    <ion-chip class="recent-chip" *ngFor="let b of recent()">
+      <span class="recent-code">{{ b.ticketCode }}</span>
+      <ion-label>{{ b.customerName }}</ion-label>
+      <span class="recent-seats">{{ b.seats.join(' · ') }}</span>
+    </ion-chip>
+  </div>
+
   <section class="list">
+    <p class="section-label">All bookings</p>
+
     <ion-card class="booking-card" *ngFor="let b of filtered()">
       <ion-card-content class="booking-body">
         <div class="row-top">
@@ -41,9 +48,9 @@
           </span>
           <ion-chip
             class="status-chip"
-            [class.checked]="b.status === 'checked-in'"
+            [class.used]="b.status === 'checked-in'"
           >
-            {{ b.status === 'checked-in' ? 'Checked in' : 'Valid' }}
+            {{ b.status === 'checked-in' ? 'Attended' : 'Valid' }}
           </ion-chip>
         </div>
 
@@ -56,14 +63,21 @@
           </p>
         </div>
 
+        <div class="tier-line">
+          <span class="tier-tag">{{ b.tier }}</span>
+          <span class="seats" *ngFor="let s of b.seats.slice(0, 5)">{{ s }}</span>
+          <span class="more" *ngIf="b.seats.length > 5">+{{ b.seats.length - 5 }}</span>
+        </div>
+
         <div class="row-bottom">
           <div class="customer">
             <span>{{ b.customerName }}</span>
             <small>{{ b.customerEmail }}</small>
           </div>
           <div class="side">
-            <span class="qty">{{ b.quantity }} ticket{{ b.quantity > 1 ? 's' : '' }}
-              · {{ b.total | currency: 'PHP' : 'symbol-narrow' }}</span>
+            <span class="qty">
+              {{ b.total | currency: 'PHP' : 'symbol-narrow' }}
+            </span>
             <ion-button
               size="small"
               [disabled]="b.status === 'checked-in'"
