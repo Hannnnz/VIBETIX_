@@ -3,6 +3,7 @@ import { Component } from '@angular/core';
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
 import { AuthService, Session } from '../../services/auth.service';
+import { completeRefresher } from '../../utils/refresher';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -24,6 +25,15 @@ export class AdminDashboardPage {
     this.session = this.auth.getSession();
     void this.bookingService.hydrate();
     void this.concertService.hydrate();
+  }
+
+  /** Pull-down-to-refresh refetches events + bookings. */
+  async doRefresh(event: Event): Promise<void> {
+    await Promise.all([
+      this.bookingService.hydrate(),
+      this.concertService.hydrate(),
+    ]).catch(() => undefined);
+    completeRefresher(event);
   }
 
   stats() {

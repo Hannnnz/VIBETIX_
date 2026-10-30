@@ -4,6 +4,7 @@ import { ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { RecommendService } from '../services/recommend.service';
+import { completeRefresher } from '../utils/refresher';
 @Component({
   selector: 'app-concerts',
   templateUrl: './concerts.page.html',
@@ -21,7 +22,12 @@ export class ConcertsPage {
     private router: Router,
     private toastCtrl: ToastController,
     private zone: NgZone
-  ) {}
+  ) {
+    // 🔴 Realtime: a new event lands in the DB → feed repaints itself.
+    this.concerts.changes$.subscribe(() =>
+      this.zone.run(() => (this.memo = { key: '', list: [] }))
+    );
+  }
 
   ionViewWillEnter(): void {
     // LIVE data from Supabase + personalized loves, then re-rank the feed.
@@ -32,6 +38,13 @@ export class ConcertsPage {
     );
     void this.recommend.hydrate();
     this.memo = { key: '', list: [] };
+  }
+
+  /** Pull-down-to-refresh refetches the feed + recommendations. */
+  async doRefresh(event: Event): Promise<void> {
+    await Promise.all([this.concerts.hydrate(), this.recommend.hydrate()]);
+    this.zone.run(() => (this.memo = { key: '', list: [] }));
+    completeRefresher(event);
   }
 
   /**

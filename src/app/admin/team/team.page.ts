@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { ToastController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 
 import { AuthService, AppUser } from '../../services/auth.service';
+import { completeRefresher } from '../../utils/refresher';
 
 @Component({
   selector: 'app-team',
@@ -26,7 +27,8 @@ export class TeamPage {
     private auth: AuthService,
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
-    private router: Router
+    private router: Router,
+    private zone: NgZone
   ) {}
 
   ionViewWillEnter(): void {
@@ -35,7 +37,17 @@ export class TeamPage {
   }
 
   private async refresh(): Promise<void> {
-    this.staff = await this.auth.staffAccounts();
+    const staff = await this.auth.staffAccounts();
+    this.zone.run(() => (this.staff = staff));
+  }
+
+  /** Pull-down-to-refresh refetches the staff list + join state. */
+  async doRefresh(event: Event): Promise<void> {
+    await Promise.all([
+      this.auth.refreshCompanyCode().then(() => undefined),
+      this.refresh().catch(() => undefined),
+    ]);
+    completeRefresher(event);
   }
 
   get companyCode(): string {

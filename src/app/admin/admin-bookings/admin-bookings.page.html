@@ -11,6 +11,14 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
+    <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+      <ion-refresher-content
+        pullingIcon="chevron-down"
+        pullingText="Pull down to refresh"
+        refreshingSpinner="crescent"
+        refreshingText="Refreshing">
+      </ion-refresher-content>
+    </ion-refresher>
   <section class="panel">
     <ion-card class="b-card" *ngFor="let b of filtered()">
       <ion-card-content class="b-body">

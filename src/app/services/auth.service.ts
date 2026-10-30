@@ -103,9 +103,12 @@ export class AuthService {
    */
   async hydrateSession(): Promise<void> {
     try {
-      const { data } = await this.client.auth.getUser();
-      if (data?.user) {
-        await this.cacheFrom(data.user.id);
+      // getSession() reads the locally persisted Supabase session
+      // (localStorage) instantly — no network round-trip like getUser().
+      const { data } = await this.client.auth.getSession();
+      const user = data.session?.user;
+      if (user) {
+        await this.cacheFrom(user.id);
         // auto-load company code for admins/staff
         if (this.current) {
           void this.loadCompanyCode();
@@ -114,6 +117,18 @@ export class AuthService {
     } catch {
       /* not signed in — fine */
     }
+  }
+
+  /** One-time session restore that every guard can await. */
+  private readyPromise: Promise<void> | null = null;
+
+  /**
+   * Resolves once the persisted session has been restored (or there is
+   * none). Memoized — safe to await from every guard / the splash page.
+   */
+  ensureSession(): Promise<void> {
+    this.readyPromise ??= this.hydrateSession();
+    return this.readyPromise;
   }
 
   // ──────────────────────────────────────────────────────────────────

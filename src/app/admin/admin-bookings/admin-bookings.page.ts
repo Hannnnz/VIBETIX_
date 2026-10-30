@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
+import { completeRefresher } from '../../utils/refresher';
 
 @Component({
   selector: 'app-admin-bookings',
@@ -19,6 +20,12 @@ export class AdminBookingsPage {
 
   ionViewWillEnter(): void {
     void this.bookingService.hydrate(); // live bookings incl. every customer
+  }
+
+  /** Pull-down-to-refresh refetches every customer's bookings. */
+  async doRefresh(event: Event): Promise<void> {
+    await this.bookingService.hydrate().catch(() => undefined);
+    completeRefresher(event);
   }
 
   filtered(): Booking[] {

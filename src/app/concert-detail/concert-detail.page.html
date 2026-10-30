@@ -8,6 +8,14 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" *ngIf="concert; else notFound">
+    <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+      <ion-refresher-content
+        pullingIcon="chevron-down"
+        pullingText="Pull down to refresh"
+        refreshingSpinner="crescent"
+        refreshingText="Refreshing">
+      </ion-refresher-content>
+    </ion-refresher>
   <div [class]="'cover detail-cover g' + concert.color">
     <img *ngIf="concert.imageUrl" class="cover-img" [src]="concert.imageUrl" alt="" />
     <span class="cover-emoji" *ngIf="!concert.imageUrl">{{ concert.emoji }}</span>

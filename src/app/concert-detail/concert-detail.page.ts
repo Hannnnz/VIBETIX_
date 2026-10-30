@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Concert, ConcertService } from '../services/concert.service';
 import { AuthService } from '../services/auth.service';
 import { SupabaseService } from '../services/supabase.service';
+import { completeRefresher } from '../utils/refresher';
 
 interface TicketTier {
   id?: string;
@@ -41,6 +42,13 @@ export class ConcertDetailPage {
 
   ionViewWillEnter(): void {
     this.load();
+  }
+
+  /** Pull-down-to-refresh refetches the event + taken seats. */
+  async doRefresh(event: Event): Promise<void> {
+    await this.concertService.hydrate().catch(() => undefined);
+    this.load();
+    completeRefresher(event);
   }
 
   load(): void {

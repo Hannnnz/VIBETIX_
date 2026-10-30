@@ -5,6 +5,7 @@ import { Concert, ConcertService } from '../services/concert.service';
 import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 import { eventDateTime, daysUntil } from '../utils/countdown';
+import { completeRefresher } from '../utils/refresher';
 
 interface DayCell {
   date: Date;
@@ -39,7 +40,12 @@ export class CalendarPage {
     private auth: AuthService,
     private router: Router,
     private zone: NgZone
-  ) {}
+  ) {
+    // 🔴 Realtime: events change → rebuild the month grid instantly.
+    this.concertService.changes$.subscribe(() =>
+      this.zone.run(() => this.rebuild())
+    );
+  }
 
   ionViewWillEnter(): void {
     // live calendar straight from Supabase (repaint inside the zone!)
@@ -47,6 +53,16 @@ export class CalendarPage {
       .catch(() => undefined)
       .then(() => this.zone.run(() => this.rebuild()));
     this.rebuild();
+  }
+
+  /** Pull-down-to-refresh refetches events + bookings, then re-renders. */
+  async doRefresh(event: Event): Promise<void> {
+    await Promise.all([
+      this.concertService.hydrate(),
+      this.bookingService.hydrate(),
+    ]).catch(() => undefined);
+    this.zone.run(() => this.rebuild());
+    completeRefresher(event);
   }
 
   /** Shifts the visible month by -1 / +1, keeping the same day selected when possible. */

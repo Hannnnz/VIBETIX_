@@ -3,6 +3,7 @@ import { ToastController } from '@ionic/angular/lazy';
 import { Booking, BookingService } from '../services/booking.service';
 import { Concert, ConcertService } from '../services/concert.service';
 import { AuthService, Session } from '../services/auth.service';
+import { completeRefresher } from '../utils/refresher';
 
 @Component({
   selector: 'app-staff',
@@ -32,6 +33,13 @@ export class StaffPage {
       });
     });
     this.bookings = this.bookingService.getAll();
+  }
+
+  /** Pull-down-to-refresh refetches the whole door list. */
+  async doRefresh(event: Event): Promise<void> {
+    await this.bookingService.hydrate().catch(() => undefined);
+    this.zone.run(() => (this.bookings = this.bookingService.getAll()));
+    completeRefresher(event);
   }
 
   stats() {

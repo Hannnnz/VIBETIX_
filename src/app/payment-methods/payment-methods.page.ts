@@ -11,6 +11,7 @@ import {
   maskPhone,
 } from '../services/payment.service';
 import { AuthService } from '../services/auth.service';
+import { completeRefresher } from '../utils/refresher';
 
 @Component({
   selector: 'app-payment-methods',
@@ -58,6 +59,12 @@ export class PaymentMethodsPage {
     this.zone.run(() => {
       this.methods = this.paymentService.getMethods(email);
     });
+  }
+
+  /** Pull-down-to-refresh refetches saved methods from the DB. */
+  async doRefresh(event: Event): Promise<void> {
+    await this.refresh();
+    completeRefresher(event);
   }
 
   toggleAdd(): void {

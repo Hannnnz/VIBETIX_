@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../../services/concert.service';
+import { completeRefresher } from '../../utils/refresher';
 
 @Component({
   selector: 'app-admin-events',
@@ -32,6 +33,12 @@ export class AdminEventsPage {
 
   ionViewWillEnter(): void {
     void this.concertService.hydrate();
+  }
+
+  /** Pull-down-to-refresh refetches the event catalog. */
+  async doRefresh(event: Event): Promise<void> {
+    await this.concertService.hydrate().catch(() => undefined);
+    completeRefresher(event);
   }
 
   edit(concert: Concert): void {

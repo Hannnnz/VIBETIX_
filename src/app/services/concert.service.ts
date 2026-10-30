@@ -1,4 +1,5 @@
 import { Injectable, NgZone } from '@angular/core';
+import { Subject } from 'rxjs';
 
 import { SupabaseService } from './supabase.service';
 
@@ -66,10 +67,37 @@ export class ConcertService {
   /** Human-readable reason of the last failed save (shown by the form). */
   lastSaveError = '';
 
+  /**
+   * Emits whenever the catalog changed — realtime push from the DB,
+   * or a local admin edit. Pages subscribe to repaint instantly.
+   */
+  readonly changes$ = new Subject<void>();
+
+  private realtimeTimer?: ReturnType<typeof setTimeout>;
+
   constructor(
     private sb: SupabaseService,
     private zone: NgZone
-  ) {}
+  ) {
+    // 🔴 Realtime: any admin creates/updates/deletes an event → every
+    // open screen (customer Explore, calendar, admin pages) refreshes
+    // itself within milliseconds. Requires:
+    //   alter publication supabase_realtime add table concerts;
+    this.client
+      .channel('vibetix-concerts')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'concerts' },
+        () => {
+          // debounce: burst edits collapse into one refetch
+          if (this.realtimeTimer) {
+            clearTimeout(this.realtimeTimer);
+          }
+          this.realtimeTimer = setTimeout(() => void this.hydrate(), 250);
+        }
+      )
+      .subscribe();
+  }
 
   private get client() {
     return this.sb.client;
@@ -116,6 +144,7 @@ export class ConcertService {
             multiplier: Number(t.multiplier),
           }))
         );
+        this.changes$.next();
       });
     } catch {
       /* offline — keep the current cache */
@@ -202,6 +231,7 @@ export class ConcertService {
             multiplier: Number(t.multiplier),
           })),
         ];
+        this.changes$.next();
       });
       return this.getById(mapped.id) ?? null;
     }
@@ -238,6 +268,7 @@ export class ConcertService {
       this.concerts = this.concerts.map((c) =>
         c.id === id ? { ...c, ...changes, id: c.id, color: c.color } : c
       );
+      this.changes$.next();
     });
   }
 
@@ -252,6 +283,7 @@ export class ConcertService {
     this.zone.run(() => {
       this.concerts = this.concerts.filter((c) => c.id !== id);
       this.tiers = this.tiers.filter((t) => t.concertId !== id);
+      this.changes$.next();
     });
   }
 }

@@ -3,6 +3,7 @@ import { ToastController } from '@ionic/angular/lazy';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
+import { completeRefresher } from '../../utils/refresher';
 
 interface ScanResult {
   state: 'success' | 'invalid' | 'already-used' | 'none';
@@ -30,6 +31,12 @@ export class ScanPage {
   ionViewWillEnter(): void {
     // door list straight from the server
     void this.bookingService.hydrate();
+  }
+
+  /** Pull-down-to-refresh refetches the door list. */
+  async doRefresh(event: Event): Promise<void> {
+    await this.bookingService.hydrate().catch(() => undefined);
+    completeRefresher(event);
   }
 
   concertOf(booking: Booking): Concert | undefined {

@@ -3,6 +3,7 @@ import { AlertController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 import { AuthService, Session } from '../services/auth.service';
 import { PaymentService, SavedMethod } from '../services/payment.service';
+import { completeRefresher } from '../utils/refresher';
 
 @Component({
   selector: 'app-account',
@@ -62,6 +63,33 @@ export class AccountPage {
       });
     });
     this.methods = this.paymentService.getMethods(email);
+  }
+
+  /** Pull-down-to-refresh refetches profile extras + saved methods. */
+  async doRefresh(event: Event): Promise<void> {
+    this.session = this.auth.getSession();
+    const email = this.session?.email ?? '';
+    const jobs: Promise<void>[] = [
+      this.paymentService.hydrate(email).then(() => {
+        this.zone.run(() => (this.methods = this.paymentService.getMethods(email)));
+      }),
+    ];
+    if (this.session?.role === 'admin') {
+      jobs.push(
+        this.auth.staffAccounts().then((staff) => {
+          this.zone.run(() => (this.staffCount = staff.length));
+        })
+      );
+    }
+    if (this.session?.role === 'admin' || this.session?.role === 'staff') {
+      jobs.push(
+        this.auth.refreshCompanyCode().then((code) => {
+          this.zone.run(() => (this.companyCode = code || 'unavailable'));
+        })
+      );
+    }
+    await Promise.all(jobs.map((p) => p.catch(() => undefined)));
+    completeRefresher(event);
   }
 
   get isCustomer(): boolean {
