@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { Concert, ConcertService } from '../services/concert.service';
@@ -19,7 +19,7 @@ interface TicketTier {
   styleUrls: ['./concert-detail.page.scss'],
   standalone: false,
 })
-export class ConcertDetailPage {
+export class ConcertDetailPage implements OnInit {
   concert: Concert | undefined;
   tiers: TicketTier[] = [];
   selectedTier: TicketTier | null = null;
@@ -37,43 +37,57 @@ export class ConcertDetailPage {
     private router: Router,
     private concertService: ConcertService,
     public auth: AuthService,
-    private sb: SupabaseService
+    private sb: SupabaseService,
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
-  ionViewWillEnter(): void {
-    this.load();
+  ngOnInit(): void {
+    void this.ionViewWillEnter();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    await this.load();
   }
 
   /** Pull-down-to-refresh refetches the event + taken seats. */
   async doRefresh(event: Event): Promise<void> {
-    await this.concertService.hydrate().catch(() => undefined);
-    this.load();
+    await this.load();
     completeRefresher(event);
   }
 
-  load(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    this.concert = this.concertService.getById(id || '');
+  async load(): Promise<void> {
+    const id = this.route.snapshot.paramMap.get('id') || '';
+    // Hydrate + direct-fetch fallback so a created event is never reported
+    // as "not found" just because the local cache was empty/stale.
+    const found = await this.concertService.ensureLoaded(id);
+    this.zone.run(() => {
+      this.concert = found;
+      this.cdr.detectChanges();
+      if (this.concert) {
+        const perks: Record<string, string> = {
+          'Gen Ad': 'Free seating section',
+          'Upper Box': 'Reserved seat, elevated view',
+          'Lower Box': 'Reserved seat, closer stage',
+          VIP: 'Premium seated area + VIP lane',
+          SVIP: 'Front zone + artist merch pack',
+        };
+        this.tiers = this.concertService.tiersFor(this.concert.id).map((t) => ({
+          id: t.id,
+          name: t.name,
+          price: Math.round(this.concert!.price * t.multiplier),
+          perks: perks[t.name] ?? 'Standard access',
+        }));
+        this.selectedTier = this.selectedTier
+          ? this.tiers.find((t) => t.name === this.selectedTier!.name) ?? null
+          : null;
+        this.selected = new Set<string>();
+      }
+    });
     if (this.concert) {
-      const perks: Record<string, string> = {
-        'Gen Ad': 'Free seating section',
-        'Upper Box': 'Reserved seat, elevated view',
-        'Lower Box': 'Reserved seat, closer stage',
-        VIP: 'Premium seated area + VIP lane',
-        SVIP: 'Front zone + artist merch pack',
-      };
-      this.tiers = this.concertService.tiersFor(this.concert.id).map((t) => ({
-        id: t.id,
-        name: t.name,
-        price: Math.round(this.concert!.price * t.multiplier),
-        perks: perks[t.name] ?? 'Standard access',
-      }));
-      this.selectedTier = this.selectedTier
-        ? this.tiers.find((t) => t.name === this.selectedTier!.name) ?? null
-        : null;
-      this.selected = new Set<string>();
-      this.loadTakenSeats();
+      await this.loadTakenSeats();
     }
+    this.cdr.detectChanges();
   }
 
   /** Sold seats straight from the bookings table (always current). */
@@ -90,7 +104,8 @@ export class ConcertDetailPage {
         return;
       }
       const codes = (data ?? []).map((s) => (s as { seat_code: string }).seat_code);
-      this.taken = new Set(codes);
+      this.zone.run(() => (this.taken = new Set(codes)));
+      this.cdr.detectChanges();
     } catch {
       /* offline — show all seats free */
     }

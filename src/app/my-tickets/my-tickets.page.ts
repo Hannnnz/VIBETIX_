@@ -25,14 +25,21 @@ export class MyTicketsPage {
     private router: Router,
     private zone: NgZone
   ) {}
-  ionViewWillEnter(): void {
-    this.session = this.auth.getSession();
+  async ionViewWillEnter(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
+    this.zone.run(() => {
+      this.session = this.auth.getSession();
+    });
     const email = this.session?.email ?? '';
     // LIVE bookings from Supabase, then render
-    void this.bookingService.hydrate().then(() => {
-      this.zone.run(() => {
-        this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
-      });
+    try {
+      await this.bookingService.hydrate();
+    } catch {
+      /* keep current cache */
+    }
+    this.zone.run(() => {
+      this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
+      this.now = Date.now();
     });
     this.now = Date.now();
     // Live DD:HH:MM:SS ticking for upcoming shows

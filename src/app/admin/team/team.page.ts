@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { ToastController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
@@ -12,7 +12,7 @@ import { completeRefresher } from '../../utils/refresher';
   styleUrls: ['./team.page.scss'],
   standalone: false,
 })
-export class TeamPage {
+export class TeamPage implements OnInit {
   staff: AppUser[] = [];
   adding = false;
   busy = false;
@@ -31,14 +31,26 @@ export class TeamPage {
     private zone: NgZone
   ) {}
 
-  ionViewWillEnter(): void {
-    void this.auth.refreshCompanyCode();
-    void this.refresh();
+  ngOnInit(): void {
+    void this.ionViewWillEnter();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    try {
+      await this.auth.refreshCompanyCode();
+    } catch {
+      /* keep current */
+    }
+    await this.refresh();
   }
 
   private async refresh(): Promise<void> {
-    const staff = await this.auth.staffAccounts();
-    this.zone.run(() => (this.staff = staff));
+    try {
+      const staff = await this.auth.staffAccounts();
+      this.zone.run(() => (this.staff = staff));
+    } catch {
+      /* keep current */
+    }
   }
 
   /** Pull-down-to-refresh refetches the staff list + join state. */

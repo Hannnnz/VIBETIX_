@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { ToastController } from '@ionic/angular/lazy';
 import { Booking, BookingService } from '../services/booking.service';
 import { Concert, ConcertService } from '../services/concert.service';
@@ -11,7 +11,7 @@ import { completeRefresher } from '../utils/refresher';
   styleUrls: ['./staff.page.scss'],
   standalone: false,
 })
-export class StaffPage {
+export class StaffPage implements OnInit {
   session: Session | null = null;
   bookings: Booking[] = [];
   search = '';
@@ -24,15 +24,27 @@ export class StaffPage {
     private zone: NgZone
   ) {}
 
-  ionViewWillEnter(): void {
-    this.session = this.auth.getSession();
-    // LIVE bookings straight from Supabase (staff sees the whole door list)
-    void this.bookingService.hydrate().then(() => {
-      this.zone.run(() => {
-        this.bookings = this.bookingService.getAll();
-      });
+  ngOnInit(): void {
+    void this.ionViewWillEnter();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
+    this.zone.run(() => {
+      this.session = this.auth.getSession();
     });
-    this.bookings = this.bookingService.getAll();
+    // LIVE bookings + concerts straight from Supabase (staff sees the whole door list)
+    try {
+      await Promise.all([
+        this.bookingService.hydrate(),
+        this.concertService.hydrate(),
+      ]);
+    } catch {
+      /* keep current cache */
+    }
+    this.zone.run(() => {
+      this.bookings = this.bookingService.getAll();
+    });
   }
 
   /** Pull-down-to-refresh refetches the whole door list. */

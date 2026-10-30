@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { Concert, ConcertService } from '../services/concert.service';
@@ -27,7 +27,7 @@ interface DayEvent {
   styleUrls: ['./calendar.page.scss'],
   standalone: false,
 })
-export class CalendarPage {
+export class CalendarPage implements OnInit {
   weeks: DayCell[][] = [];
   monthLabel = '';
   selected: Date | null = null;
@@ -47,12 +47,23 @@ export class CalendarPage {
     );
   }
 
-  ionViewWillEnter(): void {
+  ngOnInit(): void {
+    void this.ionViewWillEnter();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    // Restore the persisted session first so booking queries (RLS) succeed.
+    await this.auth.ensureSession().catch(() => undefined);
     // live calendar straight from Supabase (repaint inside the zone!)
-    Promise.all([this.concertService.hydrate(), this.bookingService.hydrate()])
-      .catch(() => undefined)
-      .then(() => this.zone.run(() => this.rebuild()));
-    this.rebuild();
+    try {
+      await Promise.all([
+        this.concertService.hydrate(),
+        this.bookingService.hydrate(),
+      ]);
+    } catch {
+      /* keep current cache */
+    }
+    this.zone.run(() => this.rebuild());
   }
 
   /** Pull-down-to-refresh refetches events + bookings, then re-renders. */

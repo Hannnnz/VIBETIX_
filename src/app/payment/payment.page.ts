@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
@@ -25,7 +25,7 @@ interface PayOption {
   styleUrls: ['./payment.page.scss'],
   standalone: false,
 })
-export class PaymentPage {
+export class PaymentPage implements OnInit {
   concert: Concert | undefined;
   tierName = '';
   unitPrice = 0;
@@ -72,18 +72,28 @@ export class PaymentPage {
     this.refreshOptions();
   }
 
-  ionViewWillEnter(): void {
+  ngOnInit(): void {
+    void this.ionViewWillEnter();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
     try {
       const id = this.route.snapshot.queryParamMap.get('id') ?? '';
-      this.concert = this.concertService.getById(id);
-      this.tierName = this.route.snapshot.queryParamMap.get('tier') ?? '';
-      const tierId = this.route.snapshot.queryParamMap.get('tierId') ?? '';
-      this.tierId = tierId.length > 0 ? tierId : null;
-      this.unitPrice = Number(this.route.snapshot.queryParamMap.get('price') ?? 0);
-      this.seats = (this.route.snapshot.queryParamMap.get('seats') ?? '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+      // Hydrate + direct-fetch fallback so checkout never fails with
+      // "concert not found" on a cold start / stale cache.
+      const found = await this.concertService.ensureLoaded(id);
+      this.zone.run(() => {
+        this.concert = found;
+        this.tierName = this.route.snapshot.queryParamMap.get('tier') ?? '';
+        const tierId = this.route.snapshot.queryParamMap.get('tierId') ?? '';
+        this.tierId = tierId.length > 0 ? tierId : null;
+        this.unitPrice = Number(this.route.snapshot.queryParamMap.get('price') ?? 0);
+        this.seats = (this.route.snapshot.queryParamMap.get('seats') ?? '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+      });
     } catch {
       /* keep previous values — page stays usable */
     }
@@ -286,6 +296,7 @@ export class PaymentPage {
    */
   private async settle(paidVia: string): Promise<void> {
     if (!this.concert) {
+      this.toast('Event not found — please go back and reopen it.');
       return;
     }
     const session = this.auth.getSession();

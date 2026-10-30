@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 import { AuthService, Session } from '../services/auth.service';
@@ -11,7 +11,7 @@ import { completeRefresher } from '../utils/refresher';
   styleUrls: ['./account.page.scss'],
   standalone: false,
 })
-export class AccountPage {
+export class AccountPage implements OnInit {
   session: Session | null = null;
   methods: SavedMethod[] = [];
   staffCount = 0;
@@ -37,32 +37,52 @@ export class AccountPage {
     private zone: NgZone
   ) {}
 
-  ionViewWillEnter(): void {
-    this.session = this.auth.getSession();
-    this.refreshMethods();
+  ngOnInit(): void {
+    void this.ionViewWillEnter();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    // Restore the persisted session first (survives refresh / cold start)
+    await this.auth.ensureSession().catch(() => undefined);
+    this.zone.run(() => {
+      this.session = this.auth.getSession();
+    });
+    await this.refreshMethods();
 
     // Admin extras: staff count + current company code (from Supabase)
     if (this.session?.role === 'admin') {
-      void this.auth.staffAccounts().then((staff) => {
+      try {
+        const staff = await this.auth.staffAccounts();
         this.zone.run(() => (this.staffCount = staff.length));
-      });
-      void this.auth.refreshCompanyCode().then((code) => {
+      } catch {
+        /* keep previous */
+      }
+      try {
+        const code = await this.auth.refreshCompanyCode();
         this.zone.run(() => (this.companyCode = code || 'unavailable'));
-      });
+      } catch {
+        /* keep previous */
+      }
     }
     if (this.session?.role === 'staff') {
-      void this.auth.refreshCompanyCode();
+      try {
+        await this.auth.refreshCompanyCode();
+      } catch {
+        /* keep previous */
+      }
     }
   }
 
-  private refreshMethods(): void {
+  private async refreshMethods(): Promise<void> {
     const email = this.session?.email ?? '';
-    void this.paymentService.hydrate(email).then(() => {
-      this.zone.run(() => {
-        this.methods = this.paymentService.getMethods(email);
-      });
+    try {
+      await this.paymentService.hydrate(email);
+    } catch {
+      /* keep current cache */
+    }
+    this.zone.run(() => {
+      this.methods = this.paymentService.getMethods(email);
     });
-    this.methods = this.paymentService.getMethods(email);
   }
 
   /** Pull-down-to-refresh refetches profile extras + saved methods. */

@@ -129,6 +129,7 @@ export class ConcertService {
         .select('*, tiers:ticket_tiers(id, concert_id, name, multiplier)')
         .order('event_date', { ascending: true });
       if (error || !data) {
+        console.error('concerts hydrate failed:', error?.message ?? error);
         return;
       }
       this.zone.run(() => {
@@ -157,6 +158,66 @@ export class ConcertService {
 
   getById(id: string): Concert | undefined {
     return this.concerts.find((c) => c.id === id);
+  }
+
+  /**
+   * Ensures a single concert is present in the local cache, hydrating the
+   * whole catalog first and falling back to a direct DB fetch by id.
+   * Used by detail/checkout pages so a created event is never reported as
+   * "not found" just because the cache was empty or stale.
+   */
+  async ensureLoaded(id: string): Promise<Concert | undefined> {
+    if (!id) {
+      return undefined;
+    }
+    let found = this.getById(id);
+    if (found) {
+      return found;
+    }
+    await this.hydrate().catch(() => undefined);
+    found = this.getById(id);
+    if (found) {
+      return found;
+    }
+    try {
+      const { data, error } = await this.client
+        .from('concerts')
+        .select('*, tiers:ticket_tiers(id, concert_id, name, multiplier)')
+        .eq('id', id)
+        .single();
+      if (error || !data) {
+        return this.getById(id);
+      }
+      const row = data as ConcertRow & {
+        tiers: { id: string; concert_id: string; name: string; multiplier: number }[];
+        status?: string;
+      };
+      if (row.status === 'draft') {
+        return this.getById(id);
+      }
+      this.zone.run(() => {
+        const concert = this.map(row);
+        const idx = this.concerts.findIndex((c) => c.id === concert.id);
+        if (idx >= 0) {
+          this.concerts[idx] = concert;
+        } else {
+          this.concerts.push(concert);
+        }
+        this.tiers = this.tiers.filter((t) => t.concertId !== concert.id);
+        this.tiers.push(
+          ...(row.tiers ?? []).map((t) => ({
+            id: t.id,
+            concertId: t.concert_id,
+            name: t.name,
+            multiplier: Number(t.multiplier),
+          }))
+        );
+        this.changes$.next();
+      });
+    } catch (e) {
+      console.error('concert direct fetch failed:', e);
+    }
+    return this.getById(id);
   }
 
   /** Tiers for a concert — DB-seeded when present, sensible fallback otherwise. */
