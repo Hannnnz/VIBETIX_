@@ -3,34 +3,62 @@
   --padding-end: 0;
 }
 
+/* Hero with floating music notes */
 .login-hero {
-  padding: 48px 24px 8px;
+  position: relative;
+  padding: 56px 24px 16px;
   text-align: center;
+  overflow: visible;
 
-  h1 {
+  .neon {
     margin: 0;
-    font-size: 42px;
+    font-size: 46px;
     font-weight: 900;
-    letter-spacing: 6px;
-    background: linear-gradient(90deg, #8f7bff, #ff6ec7);
+    letter-spacing: 7px;
+    background: linear-gradient(90deg, #8f7bff, #ff6ec7, #4facfe, #8f7bff);
+    background-size: 300% 100%;
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
+    filter: drop-shadow(0 0 18px rgba(123, 91, 255, 0.55));
+    animation: shimmerText 6s linear infinite;
   }
 
   p {
-    margin: 6px 0 0;
+    margin: 10px 0 0;
     color: var(--ion-color-step-300, #9d9db8);
     font-size: 15px;
     line-height: 1.5;
+    animation: fadeUp 0.6s ease-out both;
   }
 }
 
+/* Floating notes drifting around the hero */
+.login-hero .note {
+  position: absolute;
+  font-size: 22px;
+  opacity: 0.7;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25));
+  animation: floaty 5s ease-in-out infinite;
+  pointer-events: none;
+
+  &.n1 { top: 44px; left: 12%; animation-delay: 0s; }
+  &.n2 { top: 90px; right: 10%; animation-delay: 0.9s; }
+  &.n3 { top: 130px; left: 6%; font-size: 18px; animation-delay: 1.7s; }
+  &.n4 { top: 30px; right: 22%; font-size: 16px; animation-delay: 2.4s; }
+}
+
+/* Glassy sign-in card */
 .form-wrap {
-  margin: 12px 24px 0;
-  padding: 20px 16px 24px;
-  border-radius: 20px;
-  background: var(--app-surface);
+  margin: 22px 24px 0;
+  padding: 22px 16px 24px;
+  border-radius: 22px;
+  background: rgba(22, 22, 52, 0.66);
+  border: 1px solid var(--app-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  animation: fadeUp 0.55s ease-out 0.1s both;
 }
 
 .field {
@@ -44,21 +72,24 @@
 }
 
 .login-btn {
-  margin: 16px 4px 0;
-  height: 48px;
-  font-weight: 700;
+  margin: 18px 4px 0;
+  height: 50px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  animation: fadeUp 0.5s ease-out 0.18s both, pulseGlow 3s ease-in-out 0.6s infinite;
 }
 
 .quick-accounts {
-  margin-top: 22px;
+  margin-top: 24px;
   text-align: center;
+  animation: fadeUp 0.5s ease-out 0.26s both;
 
   .quick-label {
-    margin: 0 0 4px;
-    font-size: 12px;
+    margin: 0 0 6px;
+    font-size: 11px;
     color: var(--ion-color-step-300, #9d9db8);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
   }
 
   .chips {
@@ -69,8 +100,14 @@
   }
 
   ion-chip {
-    background: rgba(123, 91, 255, 0.12);
+    background: rgba(123, 91, 255, 0.14);
+    border: 1px solid rgba(123, 91, 255, 0.25);
     --color: var(--ion-text-color);
+    transition: transform 0.15s ease;
+
+    &:active {
+      transform: scale(0.94);
+    }
   }
 }
 
@@ -79,14 +116,9 @@
   height: 10px;
   border-radius: 50%;
   margin-right: 4px;
+  animation: wiggle 2.5s ease-in-out infinite;
 
-  &.dot-admin {
-    background: #ff6ec7;
-  }
-  &.dot-staff {
-    background: #4facfe;
-  }
-  &.dot-customer {
-    background: #2dd36f;
-  }
+  &.dot-admin { background: #ff6ec7; }
+  &.dot-staff { background: #4facfe; }
+  &.dot-customer { background: #2dd36f; }
 }

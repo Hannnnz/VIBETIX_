@@ -19,11 +19,16 @@
     border-radius: 14px;
     background: var(--app-surface);
     border: 1px solid var(--app-border);
+    animation: fadeUp 0.45s ease-out both;
+
+    &:nth-child(2) { animation-delay: 0.06s; }
+    &:nth-child(3) { animation-delay: 0.12s; }
 
     .num {
       font-size: 24px;
       font-weight: 900;
       color: var(--ion-color-primary);
+      text-shadow: 0 0 16px rgba(123, 91, 255, 0.55);
     }
 
     .lbl {

@@ -37,10 +37,89 @@
 @import "@ionic/angular/css/palettes/dark.system.css";
 
 /* =========================================================
-   VIBETIX shared styling
+   VIBETIX design system — dark stage, neon aurora, glass
    ========================================================= */
 
-/* Gradient covers for concert artwork cards */
+html {
+  background: #0b0b1a;
+}
+
+body {
+  background: transparent;
+}
+
+/* Transparent content panes so the animated aurora shows through */
+ion-content {
+  --background: transparent;
+}
+
+/* Animated aurora — two slow, huge, blurred light layers behind the app */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: -25%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+body::before {
+  background:
+    radial-gradient(circle at 22% 18%, rgba(123, 91, 255, 0.28), transparent 42%),
+    radial-gradient(circle at 82% 32%, rgba(255, 110, 199, 0.2), transparent 46%),
+    radial-gradient(circle at 50% 88%, rgba(79, 172, 254, 0.16), transparent 48%);
+  filter: blur(32px);
+  animation: aurora 16s ease-in-out infinite alternate;
+}
+
+body::after {
+  background:
+    radial-gradient(circle at 70% 10%, rgba(240, 147, 251, 0.1), transparent 40%),
+    radial-gradient(circle at 10% 70%, rgba(48, 207, 208, 0.12), transparent 42%);
+  filter: blur(40px);
+  animation: aurora 23s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes aurora {
+  0% {
+    transform: translate3d(-5%, -3%, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(4%, 2%, 0) scale(1.16) rotate(5deg);
+  }
+  100% {
+    transform: translate3d(-3%, 5%, 0) scale(1.06) rotate(-4deg);
+  }
+}
+
+/* Frosted glass on things that float above the aurora */
+ion-toolbar {
+  --background: rgba(11, 11, 26, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+ion-tab-bar {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+ion-searchbar {
+  background: transparent;
+  --background: rgba(24, 24, 54, 0.6);
+}
+
+ion-card {
+  --ion-card-background: rgba(22, 22, 52, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+ion-item {
+  --background: rgba(22, 22, 52, 0.6);
+}
+
+/* Gradient covers for concert artwork */
 .g1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
 .g2 { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
 .g3 { background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%); }
@@ -48,16 +127,111 @@
 .g5 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
 .g6 { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
 
+/* Shimmering neon logo */
 .logo-title {
   font-weight: 900;
   letter-spacing: 3px;
-  background: linear-gradient(90deg, #8f7bff, #ff6ec7);
+  background: linear-gradient(90deg, #8f7bff, #ff6ec7, #4facfe, #8f7bff);
+  background-size: 300% 100%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  animation: shimmerText 6s linear infinite;
 }
 
-ion-toolbar ion-title,
-ion-title {
-  padding-inline: 20px;
+@keyframes shimmerText {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 300% 50%;
+  }
+}
+
+/* Shared keyframes */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(6deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 8px 24px rgba(123, 91, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 8px 40px rgba(123, 91, 255, 0.6);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-4deg) scale(1);
+  }
+  50% {
+    transform: rotate(5deg) scale(1.07);
+  }
+}
+
+/* Cards drift in nicely, staggered */
+ion-card {
+  animation: fadeUp 0.45s ease-out both;
+}
+
+ion-card:nth-child(2) { animation-delay: 0.06s; }
+ion-card:nth-child(3) { animation-delay: 0.12s; }
+ion-card:nth-child(4) { animation-delay: 0.18s; }
+ion-card:nth-child(5) { animation-delay: 0.24s; }
+ion-card:nth-child(6) { animation-delay: 0.3s; }
+ion-card:nth-child(7) { animation-delay: 0.36s; }
+
+/* Glowing primary buttons */
+ion-button[solid-primary],
+ion-button {
+  --border-radius: 14px;
+}
+
+ion-button.button-solid {
+  animation: fadeUp 0.4s ease-out both;
+}
+
+/* Softer text color inside cards */
+ion-note {
+  color: var(--ion-color-step-300, #9d9db8);
+}
+
+/* Press feel on concert cards */
+ion-card:active {
+  transform: scale(0.98);
+  transition: transform 0.12s ease;
+}
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
+
+  ion-card,
+  ion-button.button-solid {
+    animation: none;
+  }
 }

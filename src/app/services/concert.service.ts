@@ -16,8 +16,9 @@ export interface Concert {
   color: number;
 }
 
-const KEY = 'vibetix_concerts';
-
+/**
+ * Frontend-only demo catalog — recreated on every launch.
+ */
 const SEED: Concert[] = [
   {
     id: 'c1',
@@ -105,31 +106,13 @@ const SEED: Concert[] = [
   },
 ];
 
+/**
+ * Pure in-memory concert "database" for the frontend demo.
+ * Admin CRUD works, but everything resets when the app restarts.
+ */
 @Injectable({ providedIn: 'root' })
 export class ConcertService {
-  concerts: Concert[] = [];
-
-  constructor() {
-    this.load();
-  }
-
-  private load(): void {
-    try {
-      const raw = localStorage.getItem(KEY);
-      this.concerts = raw ? (JSON.parse(raw) as Concert[]) : [...SEED];
-    } catch {
-      this.concerts = [...SEED];
-    }
-    this.concerts = this.concerts.sort((a, b) => a.date.localeCompare(b.date));
-  }
-
-  private persist(): void {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(this.concerts));
-    } catch {
-      /* ignore storage failures */
-    }
-  }
+  concerts: Concert[] = [...SEED];
 
   getAll(): Concert[] {
     return this.concerts;
@@ -146,7 +129,6 @@ export class ConcertService {
       color: Math.floor(Math.random() * 6) + 1,
     };
     this.concerts = [concert, ...this.concerts];
-    this.persist();
     return concert;
   }
 
@@ -154,11 +136,9 @@ export class ConcertService {
     this.concerts = this.concerts.map((c) =>
       c.id === id ? { ...c, ...changes, id: c.id, color: c.color } : c
     );
-    this.persist();
   }
 
   remove(id: string): void {
     this.concerts = this.concerts.filter((c) => c.id !== id);
-    this.persist();
   }
 }

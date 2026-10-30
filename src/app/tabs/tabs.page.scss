@@ -1,4 +1,22 @@
 ion-tab-bar {
-  --background: var(--app-surface);
+  --background: rgba(16, 16, 43, 0.78);
   border-top: 1px solid var(--app-border);
+}
+
+ion-tab-button {
+  --color: var(--ion-color-step-400, #8082a2);
+  transition: transform 0.15s ease;
+
+  &.tab-selected {
+    --color-selected: var(--ion-color-primary);
+
+    ion-icon {
+      transform: translateY(-2px) scale(1.15);
+      filter: drop-shadow(0 0 10px rgba(123, 91, 255, 0.7));
+    }
+  }
+
+  ion-icon {
+    transition: transform 0.2s ease, filter 0.2s ease;
+  }
 }

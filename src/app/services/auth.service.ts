@@ -13,7 +13,6 @@ export interface AppUser {
   role: Role;
 }
 
-/** Info stored in localStorage while a user is signed in. */
 export interface Session {
   email: string;
   name: string;
@@ -32,10 +31,14 @@ const USERS: AppUser[] = [
   { email: 'user@gmail.com', password: 'user123', name: 'Juan Customer', role: 'customer' },
 ];
 
-const SESSION_KEY = 'vibetix_session';
-
+/**
+ * Pure frontend auth: the session lives in memory only.
+ * No server, no storage — restart the app and it resets (demo mode).
+ */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private session: Session | null = null;
+
   /** Returns the session when the email/password match a hardcoded user. */
   login(email: string, password: string): Session | null {
     const normalized = (email || '').trim().toLowerCase();
@@ -45,31 +48,25 @@ export class AuthService {
     if (!found) {
       return null;
     }
-    const session: Session = {
+    this.session = {
       email: found.email,
       name: found.name,
       role: found.role,
     };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    return session;
+    return this.session;
   }
 
   logout(): void {
-    localStorage.removeItem(SESSION_KEY);
+    this.session = null;
   }
 
   getSession(): Session | null {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      return raw ? (JSON.parse(raw) as Session) : null;
-    } catch {
-      return null;
-    }
+    return this.session;
   }
 
   /** Landing route right after a successful login. */
   get roleHome(): string {
-    const role = this.getSession()?.role;
+    const role = this.session?.role;
     if (role === 'admin') {
       return '/admin';
     }

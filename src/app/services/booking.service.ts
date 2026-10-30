@@ -18,8 +18,6 @@ export interface Booking {
   createdAt: string;
 }
 
-const KEY = 'vibetix_bookings';
-
 /** A few sample purchases so Staff/Admin views are not empty on first run. */
 const SEED: Booking[] = [
   {
@@ -57,30 +55,13 @@ const SEED: Booking[] = [
   },
 ];
 
+/**
+ * Pure in-memory bookings for the frontend demo.
+ * New purchases and check-ins work while the app is open, then reset.
+ */
 @Injectable({ providedIn: 'root' })
 export class BookingService {
-  bookings: Booking[] = [];
-
-  constructor() {
-    this.load();
-  }
-
-  private load(): void {
-    try {
-      const raw = localStorage.getItem(KEY);
-      this.bookings = raw ? (JSON.parse(raw) as Booking[]) : [...SEED];
-    } catch {
-      this.bookings = [...SEED];
-    }
-  }
-
-  private persist(): void {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(this.bookings));
-    } catch {
-      /* ignore storage failures */
-    }
-  }
+  bookings: Booking[] = [...SEED];
 
   private newTicketCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -104,7 +85,6 @@ export class BookingService {
       createdAt: new Date().toISOString(),
     };
     this.bookings = [booking, ...this.bookings];
-    this.persist();
     return booking;
   }
 
@@ -121,7 +101,6 @@ export class BookingService {
     const booking = this.bookings.find((b) => b.id === id);
     if (booking && booking.status === 'active') {
       booking.status = 'checked-in';
-      this.persist();
     }
     return booking;
   }

@@ -4,6 +4,8 @@
 
 .cover.detail-cover .cover-emoji {
   font-size: 96px;
+  animation: floaty 4s ease-in-out infinite;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.4));
 }
 
 .detail-body {
@@ -103,6 +105,7 @@
   .buy-btn {
     height: 50px;
     font-weight: 800;
+    animation: pulseGlow 2.6s ease-in-out infinite;
   }
 
   .buy-note {

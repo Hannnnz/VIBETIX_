@@ -20,15 +20,15 @@
   --ion-text-color: #f2f2fa;
   --ion-text-color-rgb: 242, 242, 250;
 
-  --ion-toolbar-background: #0b0b1a;
-  --ion-card-background: #161634;
-  --ion-item-background: #161634;
-  --ion-tab-bar-background: #10102b;
-  --ion-border-color: #2a2a4a;
+  --ion-toolbar-background: rgba(11, 11, 26, 0.6);
+  --ion-card-background: rgba(22, 22, 52, 0.72);
+  --ion-item-background: rgba(22, 22, 52, 0.6);
+  --ion-tab-bar-background: rgba(16, 16, 43, 0.72);
+  --ion-border-color: rgba(255, 255, 255, 0.08);
 
-  /* App-specific custom tokens */
-  --app-surface: #161634;
-  --app-border: #2a2a4a;
+  /* App-specific custom tokens (semi-transparent for the glassy look) */
+  --app-surface: rgba(22, 22, 52, 0.72);
+  --app-border: rgba(255, 255, 255, 0.09);
 }
 
 /* Neutral grays used by Ionic for step colors on dark backgrounds */
