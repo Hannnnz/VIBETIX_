@@ -126,12 +126,17 @@ export class AuthService {
       password,
     });
     if (error || !data.user) {
+      this.lastLoginError = mapAuthError(error?.message ?? '');
       return null;
     }
+    this.lastLoginError = null;
     await this.cacheFrom(data.user.id);
     void this.loadCompanyCode();
     return this.current;
   }
+
+  /** Human-readable explanation of the last failed login (shown by the UI). */
+  lastLoginError: string | null = null;
 
   /**
    * Frontend sign up. The `profiles` trigger creates the row with the
@@ -343,4 +348,19 @@ export class AuthService {
     }
     return '/tabs/concerts';
   }
+}
+
+/** Translates Supabase auth errors into plain-English toast text. */
+function mapAuthError(message: string): string {
+  const m = (message || '').toLowerCase();
+  if (m.includes('not confirmed') || m.includes('not_confirmed')) {
+    return 'This email is not confirmed yet — check your inbox, or ask the project admin to turn OFF "Confirm email" in Supabase → Authentication.';
+  }
+  if (m.includes('rate limit')) {
+    return 'Too many attempts — wait a minute and try again.';
+  }
+  if (m.includes('signed in')) {
+    return '';
+  }
+  return 'Invalid email or password.';
 }

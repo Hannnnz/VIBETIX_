@@ -55,7 +55,7 @@ export class LoginPage {
     this.auth.rememberedEmail = this.remember ? this.email.trim() : '';
     const session = await this.auth.login(this.email, this.password);
     if (!session) {
-      this.toast('Invalid email or password.');
+      this.toast(this.auth.lastLoginError ?? 'Invalid email or password.');
       return;
     }
     const welcome =
