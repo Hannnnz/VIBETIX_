@@ -17,6 +17,11 @@ const routes: Routes = [
           import('../concerts/concerts.module').then((m) => m.ConcertsPageModule),
       },
       {
+        path: 'calendar',
+        loadChildren: () =>
+          import('../calendar/calendar.module').then((m) => m.CalendarPageModule),
+      },
+      {
         path: 'my-tickets',
         loadChildren: () =>
           import('../my-tickets/my-tickets.module').then((m) => m.MyTicketsPageModule),

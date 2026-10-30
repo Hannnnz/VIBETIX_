@@ -62,6 +62,13 @@ export class ConcertDetailPage implements OnInit {
     }
   }
 
+  rulesList(): string[] {
+    return (this.concert?.rules ?? '')
+      .split('\n')
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0);
+  }
+
   chooseTier(tier: TicketTier): void {
     this.selectedTier = tier;
     this.selected = new Set<string>();

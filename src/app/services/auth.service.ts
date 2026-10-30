@@ -42,6 +42,10 @@ export class AuthService {
   /** Accounts created on the Register screen (also in-memory only). */
   private registered: AppUser[] = [];
 
+  /** "Remember me" — keeps the email around while the app is open. */
+  rememberedEmail = '';
+  rememberMe = false;
+
   private findUser(email: string): AppUser | undefined {
     const normalized = email.trim().toLowerCase();
     return [...USERS, ...this.registered].find((u) => u.email === normalized);
@@ -61,6 +65,11 @@ export class AuthService {
       name: found.name,
       role: found.role,
     };
+    if (this.rememberMe) {
+      this.rememberedEmail = found.email;
+    } else {
+      this.rememberedEmail = '';
+    }
     return this.session;
   }
 

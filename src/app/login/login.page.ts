@@ -13,6 +13,7 @@ import { AuthService } from '../services/auth.service';
 export class LoginPage {
   email = '';
   password = '';
+  remember = false;
 
   /** Passwords are hardcoded test credentials, safe to show on the login card. */
   testAccounts = [
@@ -31,6 +32,12 @@ export class LoginPage {
     // Already signed in? Skip the login screen straight away.
     if (this.auth.getSession()) {
       this.router.navigateByUrl(this.auth.roleHome, { replaceUrl: true });
+      return;
+    }
+    // Prefill from "Remember me" (kept for the lifetime of the app session).
+    if (this.auth.rememberedEmail) {
+      this.email = this.auth.rememberedEmail;
+      this.remember = this.auth.rememberMe;
     }
   }
 
@@ -44,6 +51,7 @@ export class LoginPage {
       this.toast('Please enter your email and password.');
       return;
     }
+    this.auth.rememberMe = this.remember;
     const session = this.auth.login(this.email, this.password);
     if (!session) {
       this.toast('Invalid email or password.');

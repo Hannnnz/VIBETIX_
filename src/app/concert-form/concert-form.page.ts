@@ -11,8 +11,6 @@ import { Concert, ConcertService } from '../services/concert.service';
   standalone: false,
 })
 export class ConcertFormPage {
- emojiChoices = ['🎤', '🎸', '🎧', '🎷', '🎹', '🥁', '✨', '🔥', '💜', '🌆'];
-
   form: Concert = {
     id: '',
     name: '',
@@ -25,9 +23,12 @@ export class ConcertFormPage {
     description: '',
     emoji: '🎤',
     color: 1,
+    imageUrl: '',
+    rules: '',
   };
 
   editingId: string | null = null;
+  previewBroken = false;
 
   constructor(
     private concertService: ConcertService,
@@ -56,12 +57,16 @@ export class ConcertFormPage {
         description: '',
         emoji: '🎤',
         color: 1,
+        imageUrl: '',
+        rules: '',
       };
     }
+    this.previewBroken = false;
   }
 
-  pickEmoji(emoji: string): void {
-    this.form.emoji = emoji;
+  /** Tiny emoji fallback is still used when no image URL is provided. */
+  keepEmojiFallback(): void {
+    this.previewBroken = false;
   }
 
   get isEditing(): boolean {
@@ -95,17 +100,19 @@ export class ConcertFormPage {
       time: this.form.time,
       price: this.form.price,
       description: this.form.description,
+      imageUrl: (this.form.imageUrl || '').trim(),
+      rules: (this.form.rules || '').trim(),
       emoji: this.form.emoji,
     };
 
     if (this.editingId) {
       this.concertService.update(this.editingId, payload);
-      this.toast('Concert updated.');
+      this.toast('Event updated.');
     } else {
       this.concertService.add(payload as Omit<Concert, 'id' | 'color'>);
-      this.toast('Concert created.');
+      this.toast('Event created.');
     }
-    this.router.navigate(['/admin']);
+    this.router.navigate(['/admin/events']);
   }
 
   private async toast(message: string): Promise<void> {
@@ -113,7 +120,7 @@ export class ConcertFormPage {
       message,
       duration: 1800,
       position: 'top',
-      color: 'primary',
+      color: 'dark',
     });
     await toast.present();
   }

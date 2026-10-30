@@ -1,0 +1,19 @@
+<ion-content [fullscreen]="true" class="splash-content">
+  <div class="stage">
+    <div class="logo-wrap">
+      <span class="note n1">🎶</span>
+      <span class="note n2">✨</span>
+      <h1 class="brand">
+        <span class="letter" *ngFor="let l of letters">{{ l }}</span>
+      </h1>
+      <div class="red-line"></div>
+      <p class="tagline">Concert tickets · In seconds</p>
+    </div>
+
+    <div class="loader-track">
+      <div class="loader-fill"></div>
+    </div>
+  </div>
+
+  <span class="build">VIBETIX · 1.0.0</span>
+</ion-content>

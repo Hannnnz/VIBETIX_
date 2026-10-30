@@ -31,7 +31,8 @@
     <p class="card-label">Next show</p>
     <div class="next">
       <div class="next-cover" [class]="'next-cover g' + nextShow()?.color">
-        {{ nextShow()?.emoji }}
+        <img *ngIf="nextShow()?.imageUrl" [src]="nextShow()?.imageUrl" alt="" />
+        <span *ngIf="!nextShow()?.imageUrl">{{ nextShow()?.emoji }}</span>
       </div>
       <div>
         <h3>{{ nextShow()?.name }}</h3>

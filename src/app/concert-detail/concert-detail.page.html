@@ -9,7 +9,8 @@
 
 <ion-content [fullscreen]="true" *ngIf="concert; else notFound">
   <div [class]="'cover detail-cover g' + concert.color">
-    <span class="cover-emoji">{{ concert.emoji }}</span>
+    <img *ngIf="concert.imageUrl" class="cover-img" [src]="concert.imageUrl" alt="" />
+    <span class="cover-emoji" *ngIf="!concert.imageUrl">{{ concert.emoji }}</span>
     <div class="cover-caption">
       <h2>{{ concert.name }}</h2>
       <p>{{ concert.artist }}</p>
@@ -37,6 +38,18 @@
     </div>
 
     <p class="description">{{ concert.description }}</p>
+
+    <!-- House rules -->
+    <div class="rules" *ngIf="concert.rules">
+      <div class="section-title">
+        <span class="step"><ion-icon name="reader-outline"></ion-icon></span>
+        <h3>Event rules</h3>
+      </div>
+      <ul class="rule-list">
+        <li *ngFor="let r of rulesList()">{{ r }}</li>
+      </ul>
+      <p class="rules-note">Rules are enforced at the gate. Have a great show!</p>
+    </div>
 
     <!-- Step 1 · ticket class -->
     <div class="section-title">

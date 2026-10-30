@@ -8,7 +8,8 @@
   <section class="panel">
     <div class="concert-row" *ngFor="let c of concerts()">
       <div class="mini-cover" [class]="'mini-cover g' + c.color">
-        {{ c.emoji }}
+        <img *ngIf="c.imageUrl" [src]="c.imageUrl" alt="" />
+        <span *ngIf="!c.imageUrl">{{ c.emoji }}</span>
       </div>
       <div class="concert-info">
         <h3>{{ c.name }}</h3>

@@ -1,0 +1,83 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Calendar</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- Month switcher -->
+  <div class="month-bar">
+    <ion-button fill="clear" size="small" (click)="shift(-1)">
+      <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+    </ion-button>
+    <span class="month-name">{{ monthLabel }}</span>
+    <ion-button fill="clear" size="small" (click)="shift(1)">
+      <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+    </ion-button>
+  </div>
+
+  <!-- Month grid -->
+  <div class="cal-grid">
+    <div class="wlabel" *ngFor="let w of weekdayLabels">{{ w }}</div>
+
+    <ng-container *ngFor="let week of weeks">
+      <button
+        type="button"
+        class="cell"
+        *ngFor="let cell of week"
+        [class.out]="!cell.inMonth"
+        [class.today]="cell.isToday"
+        [class.sel]="selected && isoDate(cell.date) === isoDate(selected)"
+        [class.dot]="cell.hasEvents"
+        (click)="select(cell)"
+      >
+        <span class="daynum">{{ cell.date.getDate() }}</span>
+      </button>
+    </ng-container>
+  </div>
+
+  <!-- Selected day schedule -->
+  <section class="schedule">
+    <p class="section-label">
+      {{ selected ? (selected | date: 'EEEE, MMM d') : 'Pick a date' }}
+    </p>
+
+    <ion-card
+      class="event-row"
+      *ngFor="let e of eventsOnSelected()"
+      (click)="open(e.concert)"
+      button
+    >
+      <div class="thumb" [class]="'thumb g' + e.concert.color">
+        <img
+          *ngIf="e.concert.imageUrl"
+          [src]="e.concert.imageUrl"
+          alt=""
+        />
+        <span class="thumb-emoji" *ngIf="!e.concert.imageUrl">{{ e.concert.emoji }}</span>
+      </div>
+
+      <div class="event-info">
+        <div class="top">
+          <h3>{{ e.concert.name }}</h3>
+          <ion-chip class="owned" [class.neg]="!e.bought">
+            {{ e.bought ? 'Ticket owned' : 'No ticket' }}
+          </ion-chip>
+        </div>
+        <p>{{ e.concert.venue }} · {{ e.concert.time }}</p>
+        <div class="count" [class.started]="e.started" *ngIf="!e.bought">
+          {{ e.dayLabel }}
+        </div>
+        <div class="count owned-count" *ngIf="e.bought && !e.started">
+          {{ e.dayLabel }}
+        </div>
+        <div class="count started" *ngIf="e.started && e.bought">Show started</div>
+      </div>
+    </ion-card>
+
+    <div class="empty" *ngIf="selected && eventsOnSelected().length === 0">
+      <ion-icon name="calendar-clear-outline"></ion-icon>
+      <p>No concerts scheduled on this day.</p>
+    </div>
+  </section>
+</ion-content>

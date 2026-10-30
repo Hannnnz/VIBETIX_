@@ -41,6 +41,19 @@
       Sign in
     </ion-button>
 
+    <div class="login-foot">
+      <ion-item lines="none" class="remember">
+        <ion-checkbox
+          slot="start"
+          [(ngModel)]="remember"
+          labelPlacement="end"
+        >Remember me</ion-checkbox>
+      </ion-item>
+      <ion-button fill="clear" size="small" routerLink="/forgot-password">
+        Forgot password?
+      </ion-button>
+    </div>
+
     <div class="quick-accounts">
       <p class="quick-label">Quick sign-in · test accounts</p>
       <div class="chips">

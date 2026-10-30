@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/admin/events"></ion-back-button>
     </ion-buttons>
-    <ion-title>{{ isEditing ? 'Edit concert' : 'New concert' }}</ion-title>
+    <ion-title>{{ isEditing ? 'Edit event' : 'New event' }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -11,7 +11,7 @@
   <div class="form">
     <ion-item lines="none" class="field">
       <ion-input
-        label="Concert name"
+        label="Event name"
         labelPlacement="floating"
         [(ngModel)]="form.name"
         placeholder="e.g. Neon Nights Live"
@@ -65,7 +65,7 @@
 
     <ion-item lines="none" class="field">
       <ion-input
-        label="Ticket price"
+        label="Ticket price (Gen Ad base)"
         labelPlacement="floating"
         type="number"
         [(ngModel)]="form.price"
@@ -82,23 +82,44 @@
       ></ion-textarea>
     </ion-item>
 
-    <div class="emoji-picker">
-      <p class="picker-label">Cover icon</p>
-      <div class="emoji-row">
-        <button
-          type="button"
-          class="emoji-btn"
-          [class.selected]="form.emoji === e"
-          *ngFor="let e of emojiChoices"
-          (click)="pickEmoji(e)"
-        >
-          {{ e }}
-        </button>
+    <!-- Cover image -->
+    <p class="picker-label">Cover image (URL)</p>
+    <div class="cover-preview">
+      <img
+        *ngIf="form.imageUrl && !previewBroken"
+        [src]="form.imageUrl"
+        alt="Cover preview"
+        (error)="previewBroken = true"
+      />
+      <div class="no-img" *ngIf="!form.imageUrl || previewBroken">
+        <ion-icon name="image-outline"></ion-icon>
+        <span>No image — emoji fallback will be used</span>
       </div>
     </div>
+    <ion-item lines="none" class="field">
+      <ion-input
+        label="Image URL"
+        labelPlacement="floating"
+        [(ngModel)]="form.imageUrl"
+        (ngModelChange)="previewBroken = false"
+        placeholder="https://…"
+      ></ion-input>
+    </ion-item>
+
+    <!-- House rules -->
+    <p class="picker-label">Event rules · one per line</p>
+    <ion-item lines="none" class="field">
+      <ion-textarea
+        label="Rules"
+        labelPlacement="floating"
+        [(ngModel)]="form.rules"
+        [rows]="5"
+        placeholder="No professional cameras&#10;Doors open 1 hour before showtime"
+      ></ion-textarea>
+    </ion-item>
 
     <ion-button expand="block" class="save-btn" (click)="save()">
-      {{ isEditing ? 'Save changes' : 'Create concert' }}
+      {{ isEditing ? 'Save changes' : 'Create event' }}
     </ion-button>
   </div>
 </ion-content>

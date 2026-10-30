@@ -27,7 +27,8 @@
       button
     >
       <div class="cover" [class]="'cover g' + c.color">
-        <span class="cover-emoji">{{ c.emoji }}</span>
+        <img *ngIf="c.imageUrl" class="cover-img" [src]="c.imageUrl" alt="" />
+        <span class="cover-emoji" *ngIf="!c.imageUrl">{{ c.emoji }}</span>
         <span class="cover-date">{{ dateLabel(c.date) }} · {{ c.time }}</span>
       </div>
 
