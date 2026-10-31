@@ -102,10 +102,16 @@ export class PaymentService {
     const list = this.ensure(email);
     this.lastError = '';
     try {
-      const { data, error } = await this.client
+      const me = await this.sb.client.auth.getUser();
+      const uid = me.data?.user?.id;
+      let q = this.client
         .from('payment_methods')
         .select('id, kind, label, detail, meta')
         .order('created_at', { ascending: true });
+      if (uid) {
+        q = q.eq('customer_id', uid);
+      }
+      const { data, error } = await q;
       if (error || !data) {
         this.lastError = error?.message ?? 'Could not load saved payment methods.';
         return;

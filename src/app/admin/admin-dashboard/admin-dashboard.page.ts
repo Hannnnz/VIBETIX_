@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
@@ -15,16 +15,31 @@ export class AdminDashboardPage {
   session: Session | null = null;
   readonly tierOrder = ['SVIP', 'VIP', 'Lower Box', 'Upper Box', 'Gen Ad'];
 
+  private bookingSub?: any;
+  private concertSub?: any;
+
   constructor(
     private concertService: ConcertService,
     private bookingService: BookingService,
-    private auth: AuthService
+    private auth: AuthService,
+    private zone: NgZone
   ) {}
 
-  ionViewWillEnter(): void {
+  async ionViewWillEnter(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
     this.session = this.auth.getSession();
-    void this.bookingService.hydrate();
-    void this.concertService.hydrate();
+    this.bookingSub?.unsubscribe?.();
+    this.concertSub?.unsubscribe?.();
+    this.bookingSub = this.bookingService.changes$.subscribe(() => {
+      this.zone.run(() => (this.session = this.auth.getSession()));
+    });
+    this.concertSub = this.concertService.changes$.subscribe(() => {
+      this.zone.run(() => (this.session = this.auth.getSession()));
+    });
+    await Promise.all([
+      this.bookingService.hydrate(),
+      this.concertService.hydrate(),
+    ]).catch(() => undefined);
   }
 
   /** Pull-down-to-refresh refetches events + bookings. */
@@ -62,6 +77,11 @@ export class AdminDashboardPage {
 
   recent(): Booking[] {
     return this.bookingService.getAll().slice(0, 5);
+  }
+
+  ionViewWillLeave(): void {
+    this.bookingSub?.unsubscribe?.();
+    this.concertSub?.unsubscribe?.();
   }
 
   concertOf(booking: Booking): Concert | undefined {

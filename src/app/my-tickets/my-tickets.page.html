@@ -13,8 +13,9 @@
         refreshingText="Refreshing">
       </ion-refresher-content>
     </ion-refresher>
+  <ion-searchbar [(ngModel)]="search" placeholder="Search by concert, code, tier, seat…"></ion-searchbar>
   <section class="tickets">
-    <ion-card class="ticket-card" *ngFor="let b of bookings">
+    <ion-card class="ticket-card" *ngFor="let b of filtered()" (click)="openTicket(b)" style="cursor:pointer">
       <div class="ticket-side" [class.used]="b.status === 'checked-in'">
         <span class="side-emoji">{{ concertOf(b)?.emoji }}</span>
       </div>
@@ -60,6 +61,9 @@
           <span class="code">{{ b.ticketCode }}</span>
           <span class="qty">{{ b.quantity }} ticket{{ b.quantity > 1 ? 's' : '' }} · via {{ b.paidVia }}</span>
         </div>
+        <ion-button expand="block" size="small" (click)="openTicket(b); $event.stopPropagation()">
+          Show QR
+        </ion-button>
 
         <div class="meta-row">
           <span>
@@ -73,10 +77,13 @@
       </div>
     </ion-card>
 
-    <div class="empty" *ngIf="bookings.length === 0">
+    <div class="empty" *ngIf="filtered().length === 0">
       <ion-icon name="ticket-outline"></ion-icon>
       <h3>No tickets yet</h3>
       <p>Browse concerts and grab your first e-ticket!</p>
+      <p class="fine" *ngIf="bookingService.lastHydrateError">
+        Debug: {{ bookingService.lastHydrateError }} (count {{ bookingService.lastHydrateCount }})
+      </p>
       <ion-button (click)="goExplore()">Explore concerts</ion-button>
     </div>
   </section>

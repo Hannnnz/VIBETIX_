@@ -1,0 +1,59 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/my-tickets"></ion-back-button>
+    </ion-buttons>
+    <ion-title>E-ticket</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <section class="wrap" *ngIf="booking; else notFound">
+    <div class="qr-card">
+      <img [src]="qrImage()" alt="Ticket QR" />
+      <p class="code">{{ booking.ticketCode }}</p>
+      <p class="hint">Show this QR to staff at the gate</p>
+    </div>
+
+    <ion-card class="info">
+      <ion-card-content>
+        <h2>{{ concert?.name ?? 'Concert' }}</h2>
+        <p>{{ concert?.venue }} · {{ concert?.date }} · {{ concert?.time }}</p>
+        <div class="row">
+          <span>Tier</span><strong>{{ booking.tier }}</strong>
+        </div>
+        <div class="row">
+          <span>Seats</span><strong>{{ booking.seats.join(', ') }}</strong>
+        </div>
+        <div class="row">
+          <span>Qty</span><strong>{{ booking.quantity }}</strong>
+        </div>
+        <div class="row">
+          <span>Paid via</span><strong>{{ booking.paidVia }}</strong>
+        </div>
+        <div class="row">
+          <span>Status</span><strong>{{ booking.status }}</strong>
+        </div>
+        <div class="row" *ngIf="concert">
+          <span>Show in</span><strong>{{ countdown() }}</strong>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </section>
+
+  <ng-template #notFound>
+    <div class="empty">
+      <ion-icon name="ticket-outline"></ion-icon>
+      <h3>Ticket not found</h3>
+      <p>Code: {{ code }}</p>
+      <p>Selected: {{ bookingService.selectedBooking?.ticketCode }}</p>
+      <p class="fine">Debug: cache has {{ bookingService.getAll().length }} ticket(s).</p>
+      <ion-list *ngIf="bookingService.getAll().length">
+        <ion-item *ngFor="let b of bookingService.getAll()" (click)="selectAvailable(b)" button>
+          <ion-label>{{ b.ticketCode }}</ion-label>
+        </ion-item>
+      </ion-list>
+      <ion-button (click)="goBack()">Back to my tickets</ion-button>
+    </div>
+  </ng-template>
+</ion-content>

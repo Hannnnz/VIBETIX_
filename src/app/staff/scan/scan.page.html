@@ -21,15 +21,41 @@
   <!-- The "camera" -->
   <div class="scanner" *ngIf="!result">
     <div class="cam">
-      <div class="scan-line"></div>
+      <video
+        *ngIf="cameraActive"
+        #scanVideo
+        class="scan-video"
+        playsinline
+        muted
+      ></video>
+      <div class="scan-line" *ngIf="cameraActive"></div>
       <div class="corner tl"></div>
       <div class="corner tr"></div>
       <div class="corner bl"></div>
       <div class="corner br"></div>
-      <span class="cam-note">Point at the customer's e-ticket code</span>
+      <span class="cam-note" *ngIf="!cameraActive">Point at the customer's e-ticket code</span>
+      <span class="cam-note err" *ngIf="cameraError">{{ cameraError }}</span>
     </div>
 
     <div class="scan-actions">
+      <ion-button
+        *ngIf="!cameraActive"
+        expand="block"
+        class="red-btn"
+        (click)="startCamera()"
+      >
+        Open camera &amp; scan QR
+      </ion-button>
+      <ion-button
+        *ngIf="cameraActive"
+        expand="block"
+        fill="outline"
+        color="danger"
+        (click)="stopCamera()"
+      >
+        Stop camera
+      </ion-button>
+
       <ion-button expand="block" class="red-btn" (click)="simulateScan()">
         Simulate a customer ticket (demo)
       </ion-button>

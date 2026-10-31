@@ -31,6 +31,8 @@ export class CalendarPage implements OnInit {
   weeks: DayCell[][] = [];
   monthLabel = '';
   selected: Date | null = null;
+  now = Date.now();
+  private ticker?: ReturnType<typeof setInterval>;
 
   readonly weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -63,7 +65,15 @@ export class CalendarPage implements OnInit {
     } catch {
       /* keep current cache */
     }
-    this.zone.run(() => this.rebuild());
+    this.zone.run(() => {
+      this.now = Date.now();
+      this.rebuild();
+    });
+    this.zone.runOutsideAngular(() => {
+      this.ticker = setInterval(() => {
+        this.zone.run(() => (this.now = Date.now()));
+      }, 1000);
+    });
   }
 
   /** Pull-down-to-refresh refetches events + bookings, then re-renders. */
@@ -76,6 +86,13 @@ export class CalendarPage implements OnInit {
       ]).catch(() => undefined);
       this.zone.run(() => this.rebuild());
     });
+  }
+
+  ionViewWillLeave(): void {
+    if (this.ticker) {
+      clearInterval(this.ticker);
+      this.ticker = undefined;
+    }
   }
 
   /** Shifts the visible month by -1 / +1, keeping the same day selected when possible. */
@@ -152,7 +169,7 @@ export class CalendarPage implements OnInit {
     const ownedIds = new Set(
       this.bookingService.getBookingsFor(email).map((b) => b.concertId)
     );
-    const now = Date.now();
+    const now = this.now;
 
     return this.scheduleFor(this.selected)
       .map((concert) => {

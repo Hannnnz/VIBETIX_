@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
+import { AuthService } from '../../services/auth.service';
 import { runRefresh } from '../../utils/refresher';
 
 @Component({
@@ -15,11 +16,13 @@ export class AdminBookingsPage {
 
   constructor(
     private bookingService: BookingService,
-    private concertService: ConcertService
+    private concertService: ConcertService,
+    private auth: AuthService
   ) {}
 
-  ionViewWillEnter(): void {
-    void this.bookingService.hydrate(); // live bookings incl. every customer
+  async ionViewWillEnter(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
+    await this.bookingService.hydrate().catch(() => undefined);
   }
 
   /** Pull-down-to-refresh refetches every customer's bookings. */

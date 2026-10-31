@@ -1,0 +1,44 @@
+.wrap {
+  padding: 16px;
+}
+
+.qr-card {
+  text-align: center;
+  padding: 24px 16px;
+  border-radius: 18px;
+  background: var(--app-surface, #1a1a1a);
+  border: 1px solid var(--app-border, #333);
+  margin-bottom: 16px;
+
+  img {
+    width: 260px;
+    height: 260px;
+    border-radius: 12px;
+    background: #fff;
+    padding: 8px;
+  }
+
+  .code {
+    margin-top: 12px;
+    font-family: monospace;
+    font-weight: 800;
+    letter-spacing: 2px;
+  }
+
+  .hint {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+}
+
+.info .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.empty {
+  text-align: center;
+  padding: 48px 16px;
+}

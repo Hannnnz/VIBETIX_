@@ -1,7 +1,7 @@
 import { Injectable, NgZone } from '@angular/core';
 import { Subject } from 'rxjs';
 
-import { Session } from './auth.service';
+import { AuthService, Session } from './auth.service';
 import { SupabaseService } from './supabase.service';
 
 export type BookingStatus = 'active' | 'checked-in';
@@ -11,6 +11,7 @@ export interface Booking {
   /** Human-readable ticket code shown in tickets and during check-in. */
   ticketCode: string;
   concertId: string;
+  customerId: string;
   customerEmail: string;
   customerName: string;
   /** Ticket class bought, e.g. VIP, SVIP, Gen Ad. */
@@ -55,25 +56,66 @@ export class BookingService {
   /** Human-readable reason of the last failed booking (shown at checkout). */
   lastError = '';
 
+  /** Last hydrate diagnostics (helps surface empty-list causes). */
+  lastHydrateError = '';
+  lastHydrateCount = 0;
+
+  /** Currently signed-in user id/email, used to scope + label bookings. */
+  currentUserId = '';
+  currentUserEmail = '';
+
+  /** The ticket the user opened in the detail view (avoids fragile code lookups). */
+  selectedBooking: Booking | null = null;
+
+  private realtimeTimer?: ReturnType<typeof setTimeout>;
+
   /** Emits after the local booking cache changes (refetch / new booking). */
   readonly changes$ = new Subject<void>();
 
   constructor(
     private sb: SupabaseService,
+    private auth: AuthService,
     private zone: NgZone
-  ) {}
+  ) {
+    // 🔴 Realtime: any booking change (new ticket, check-in) refreshes the cache.
+    try {
+      this.client
+        .channel('vibetix-bookings')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'bookings' },
+          () => {
+            if (this.realtimeTimer) {
+              clearTimeout(this.realtimeTimer);
+            }
+            this.realtimeTimer = setTimeout(() => void this.hydrate(), 250);
+          }
+        )
+        .subscribe();
+    } catch {
+      /* realtime optional */
+    }
+  }
 
   private get client() {
     return this.sb.client;
   }
 
   private map(row: BookingRow, fallbackEmail = '', fallbackName = ''): Booking {
+    const uid = this.currentUserId;
+    const email =
+      row.customer?.email ??
+      (row.customer_id === uid ? (this.currentUserEmail || fallbackEmail) : fallbackEmail);
+    const name =
+      row.customer?.full_name ??
+      (row.customer_id === uid ? fallbackName : fallbackName);
     return {
       id: row.id,
       ticketCode: row.ticket_code,
       concertId: row.concert_id,
-      customerEmail: row.customer?.email ?? fallbackEmail,
-      customerName: row.customer?.full_name ?? fallbackName,
+      customerId: row.customer_id,
+      customerEmail: email,
+      customerName: name,
       tier: row.tier_name,
       seats: (row.seats ?? []).map((s) => s.seat_code).sort(),
       paidVia: row.paid_via,
@@ -86,40 +128,161 @@ export class BookingService {
 
   /** Loads my bookings (customer), or ALL bookings (staff/admin). */
   async hydrate(): Promise<void> {
+    this.lastHydrateError = '';
+    this.lastHydrateCount = 0;
     try {
-      const me = this.sb.client.auth.getUser();
-      const { data: profile } = await this.client
-        .from('profiles')
-        .select('role')
-        .eq('id', (await me).data?.user?.id ?? '')
-        .single();
-      const isElevated =
-        profile?.role === 'admin' || profile?.role === 'staff';
+      // Prefer the already-restored auth cache (most reliable after splash).
+      const cachedSession = this.auth.getSession();
+      const cachedUid = this.auth.getUserId();
+      let uid = cachedUid ?? '';
+      let userEmail = cachedSession?.email ?? '';
 
-      const query = this.client
-        .from('bookings')
-        .select(
-          `*, seats(seat_code),
-           customer:profiles!bookings_customer_id_fkey(email, full_name)`
-        )
-        .order('created_at', { ascending: false });
+      // Fall back to the Supabase client session if the cache is empty.
+      if (!uid) {
+        const { data: sessionData } = await this.sb.client.auth.getSession();
+        uid = sessionData.session?.user?.id ?? '';
+        userEmail = sessionData.session?.user?.email ?? userEmail;
+      }
+      if (!uid) {
+        const me = await this.sb.client.auth.getUser();
+        uid = me.data?.user?.id ?? '';
+        userEmail = me.data?.user?.email ?? userEmail;
+      }
+      this.currentUserId = uid;
+      this.currentUserEmail = userEmail;
 
-      const { data, error } = isElevated
-        ? await query
-        : await query.eq('customer_id', (await me).data?.user?.id ?? '');
-      if (error) {
-        // Fallback without the embed (works even if FK naming differs)
-        const fallback = await this.client
+      if (!uid) {
+        this.lastHydrateError = 'Not signed in.';
+        // No signed-in user — nothing to load.
+        return;
+      }
+
+      // Resolve role (elevated users see every booking).
+      let isElevated = false;
+      if (cachedSession?.role === 'admin' || cachedSession?.role === 'staff') {
+        isElevated = true;
+      } else {
+        try {
+          const { data: profile } = await this.client
+            .from('profiles')
+            .select('role')
+            .eq('id', uid)
+            .single();
+          isElevated =
+            profile?.role === 'admin' || profile?.role === 'staff';
+        } catch {
+          /* treat as customer */
+        }
+      }
+
+      // Fetch bookings. Prefer the security-definer RPCs (they bypass any
+      // broken/missing RLS policies); fall back to a direct query.
+      let bookingRows: any[] | null = null;
+      let fetchError: { message?: string } | null = null;
+      try {
+        const rpcName = isElevated ? 'get_all_bookings' : 'get_my_bookings';
+        const { data, error } = await this.client.rpc(rpcName);
+        if (!error && Array.isArray(data)) {
+          bookingRows = data;
+        } else {
+          fetchError = error ?? { message: 'RPC unavailable.' };
+        }
+      } catch (e) {
+        fetchError = { message: (e as Error)?.message ?? 'RPC failed.' };
+      }
+
+      if (!bookingRows) {
+        // Direct fallback (works when RLS is healthy).
+        let q = this.client
           .from('bookings')
           .select('*')
           .order('created_at', { ascending: false });
-        if (fallback.data) {
-          this.cacheRows(fallback.data as BookingRow[], '', '');
+        if (!isElevated) {
+          q = q.eq('customer_id', uid);
         }
+        const { data, error } = await q;
+        if (error || !data) {
+          this.lastHydrateError =
+            fetchError?.message || error?.message || 'No data returned.';
+          console.error('bookings hydrate failed:', error?.message ?? fetchError?.message);
+          return;
+        }
+        bookingRows = data as any[];
+      }
+
+      const ids = (bookingRows as { id: string }[]).map((r) => r.id);
+
+      // Fetch seats for these bookings (avoid fragile FK embeds).
+      const seatsByBooking = new Map<string, { seat_code: string }[]>();
+      if (ids.length > 0) {
+        try {
+          const { data: seatRows } = await this.client
+            .from('seats')
+            .select('booking_id, seat_code')
+            .in('booking_id', ids);
+          (seatRows ?? []).forEach((s: { booking_id: string; seat_code: string }) => {
+            if (!seatsByBooking.has(s.booking_id)) {
+              seatsByBooking.set(s.booking_id, []);
+            }
+            seatsByBooking.get(s.booking_id)!.push({ seat_code: s.seat_code });
+          });
+        } catch {
+          /* seats optional */
+        }
+      }
+
+      // For elevated users, fetch customer profiles to label each booking.
+      const profileById = new Map<string, { email: string; full_name: string }>();
+      if (isElevated) {
+        const customerIds = [
+          ...new Set((bookingRows as { customer_id: string }[]).map((r) => r.customer_id)),
+        ];
+        if (customerIds.length > 0) {
+          try {
+            const { data: profiles } = await this.client
+              .from('profiles')
+              .select('id, email, full_name')
+              .in('id', customerIds);
+            (profiles ?? []).forEach((p: { id: string; email: string; full_name: string }) => {
+              profileById.set(p.id, { email: p.email, full_name: p.full_name });
+            });
+          } catch {
+            /* optional */
+          }
+        }
+      }
+
+      const rows: BookingRow[] = (bookingRows as any[]).map((r) => {
+        const prof = isElevated
+          ? profileById.get(r.customer_id)
+          : { email: userEmail, full_name: '' };
+        return {
+          id: r.id,
+          ticket_code: r.ticket_code,
+          concert_id: r.concert_id,
+          customer_id: r.customer_id,
+          tier_name: r.tier_name,
+          unit_price: r.unit_price,
+          quantity: r.quantity,
+          total_amount: r.total_amount,
+          status: r.status,
+          paid_via: r.paid_via,
+          created_at: r.created_at,
+          seats: seatsByBooking.get(r.id) ?? [],
+          customer: prof ? { email: prof.email, full_name: prof.full_name } : null,
+        };
+      });
+
+      this.lastHydrateCount = rows.length;
+      // Never wipe a previously populated cache with an empty result —
+      // keeps tickets visible if a transient query/RPC returns nothing.
+      if (rows.length === 0 && this.bookings.length > 0) {
+        this.lastHydrateError = 'Empty result; kept previous cache.';
         return;
       }
-      this.cacheRows((data ?? []) as BookingRow[], '', '');
-    } catch {
+      this.cacheRows(rows, userEmail, '');
+    } catch (e) {
+      this.lastHydrateError = (e as Error)?.message ?? 'Unknown error.';
       /* keep the current cache */
     }
   }
@@ -169,11 +332,16 @@ export class BookingService {
     };
 
     const me = await this.sb.client.auth.getUser();
+    const uid = me.data?.user?.id ?? '';
+    const email = me.data?.user?.email ?? '';
+    this.currentUserId = uid || this.currentUserId;
+    this.currentUserEmail = email || this.currentUserEmail;
     const booking: Booking = {
       id: payload.id,
       ticketCode: payload.ticket_code,
       concertId,
-      customerEmail: me.data?.user?.email ?? '',
+      customerId: uid,
+      customerEmail: email,
       customerName: '',
       tier: payload.tier,
       seats: payload.seats,

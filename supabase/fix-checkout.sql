@@ -222,6 +222,31 @@ $$;
 
 grant execute on function public.check_in_ticket(text) to authenticated;
 
+-- ── Read helpers that bypass RLS (used by the app as a fallback) ──
+create or replace function public.get_my_bookings()
+returns setof public.bookings
+language sql security definer set search_path = public
+as $$
+  select * from public.bookings where customer_id = auth.uid();
+$$;
+
+create or replace function public.get_all_bookings()
+returns setof public.bookings
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.profiles where id = auth.uid() and role in ('admin', 'staff')
+  ) then
+    raise exception 'Not allowed.' using errcode = 'P0001';
+  end if;
+  return query select * from public.bookings;
+end;
+$$;
+
+grant execute on function public.get_my_bookings() to authenticated;
+grant execute on function public.get_all_bookings() to authenticated;
+
 -- ── Make PostgREST see the new functions immediately ──────────────
 notify pgrst, 'reload schema';
 

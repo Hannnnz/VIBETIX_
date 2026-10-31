@@ -207,3 +207,16 @@
   height: 48px;
   font-weight: 700;
 }
+
+.scan-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.cam-note.err {
+  color: var(--app-red, #e50914);
+}

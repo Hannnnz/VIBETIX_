@@ -1,4 +1,4 @@
-import { Component, NgZone, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
@@ -59,7 +59,7 @@ export class PaymentPage implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private zone: NgZone,
+    private cdr: ChangeDetectorRef,
     private concertService: ConcertService,
     private bookingService: BookingService,
     public auth: AuthService,
@@ -79,21 +79,25 @@ export class PaymentPage implements OnInit {
   async ionViewWillEnter(): Promise<void> {
     await this.auth.ensureSession().catch(() => undefined);
     try {
+      const email = this.auth.getSession()?.email ?? '';
+      await this.paymentService.hydrate(email).catch(() => undefined);
+    } catch {
+      /* optional */
+    }
+    try {
       const id = this.route.snapshot.queryParamMap.get('id') ?? '';
       // Hydrate + direct-fetch fallback so checkout never fails with
       // "concert not found" on a cold start / stale cache.
       const found = await this.concertService.ensureLoaded(id);
-      this.zone.run(() => {
-        this.concert = found;
-        this.tierName = this.route.snapshot.queryParamMap.get('tier') ?? '';
-        const tierId = this.route.snapshot.queryParamMap.get('tierId') ?? '';
-        this.tierId = tierId.length > 0 ? tierId : null;
-        this.unitPrice = Number(this.route.snapshot.queryParamMap.get('price') ?? 0);
-        this.seats = (this.route.snapshot.queryParamMap.get('seats') ?? '')
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0);
-      });
+      this.concert = found;
+      this.tierName = this.route.snapshot.queryParamMap.get('tier') ?? '';
+      const tierId = this.route.snapshot.queryParamMap.get('tierId') ?? '';
+      this.tierId = tierId.length > 0 ? tierId : null;
+      this.unitPrice = Number(this.route.snapshot.queryParamMap.get('price') ?? 0);
+      this.seats = (this.route.snapshot.queryParamMap.get('seats') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
     } catch {
       /* keep previous values — page stays usable */
     }
@@ -104,6 +108,7 @@ export class PaymentPage implements OnInit {
     this.selected = null;
     this.qrChecked = false;
     this.gcashOpened = false;
+    this.cdr.detectChanges();
   }
 
   /**
@@ -195,6 +200,7 @@ export class PaymentPage implements OnInit {
     this.step = 'select';
     this.qrChecked = false;
     this.gcashOpened = false;
+    this.cdr.detectChanges();
   }
 
   /** Saved GCash number linked to this wallet (for the GCash panel). */
@@ -311,6 +317,7 @@ export class PaymentPage implements OnInit {
     }
 
     this.step = 'processing';
+    this.cdr.detectChanges();
 
     // Final availability check: never take money for a seat that sold while
     // the customer was in checkout.
@@ -322,47 +329,47 @@ export class PaymentPage implements OnInit {
       return;
     }
 
-    // Simulated gateway: receiver account matched, funds captured.
-    this.zone.runOutsideAngular(() => {
-      setTimeout(() => {
-        this.zone.run(async () => {
-          // REAL backend call: Postgres place_booking — server-computed price,
-          // DB-level seat locking ('Seat already taken' if someone beat us).
-          // Hard timeout so a dead network can't leave the spinner forever.
-          let timer: ReturnType<typeof setTimeout> | undefined;
-          const timeout = new Promise<null>((resolve) => {
-            timer = setTimeout(() => resolve(null), 20000);
-          });
-          const booking = await Promise.race([
-            this.bookingService.create(
-              this.concert!.id,
-              this.tierId,
-              this.tierName,
-              this.seats,
-              paidVia
-            ),
-            timeout,
-          ]).finally(() => {
-            if (timer) {
-              clearTimeout(timer);
-            }
-          });
-
-          if (!booking) {
-            const reason =
-              this.bookingService.lastError ||
-              'Payment could not be completed — the server took too long. Check your connection and try again.';
-            this.toast(reason);
-            this.backToSelect();
-            return;
-          }
-          // 🎟 strongest taste signal — future Explore order adapts.
-          this.recommend.recordPurchase(this.concert!);
-          this.lastCode = booking.ticketCode;
-          this.step = 'success';
-        });
-      }, 1500);
+    // REAL backend call: Postgres place_booking — server-computed price,
+    // DB-level seat locking ('Seat already taken' if someone beat us).
+    // Hard timeout so a dead network can't leave the spinner forever.
+    // TESTING MODE: no artificial gateway delay — settle as soon as the DB
+    // confirms, so checkout feels instant instead of "Verifying payment…".
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), 15000);
     });
+    const booking = await Promise.race([
+      this.bookingService.create(
+        this.concert.id,
+        this.tierId,
+        this.tierName,
+        this.seats,
+        paidVia
+      ),
+      timeout,
+    ]).finally(() => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    });
+
+    if (!booking) {
+      const reason =
+        this.bookingService.lastError ||
+        'Payment could not be completed — the server took too long. Check your connection and try again.';
+      this.toast(reason);
+      this.backToSelect();
+      return;
+    }
+
+    // 🎟 strongest taste signal — future Explore order adapts.
+    this.recommend.recordPurchase(this.concert);
+    this.lastCode = booking.ticketCode;
+    // Refresh the booking cache so the new ticket is available immediately.
+    void this.bookingService.hydrate().catch(() => undefined);
+    this.step = 'success';
+    // Zoneless app: async state changes need an explicit change detection pass.
+    this.cdr.detectChanges();
   }
 
   viewTickets(): void {

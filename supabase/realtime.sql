@@ -5,6 +5,8 @@
 -- admin creating an event.
 
 alter publication supabase_realtime add table public.concerts;
+alter publication supabase_realtime add table public.bookings;
+alter publication supabase_realtime add table public.seats;
 
--- Verify it took effect (concerts should appear in the list):
+-- Verify it took effect:
 select * from pg_publication_tables where pubname = 'supabase_realtime';

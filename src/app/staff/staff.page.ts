@@ -15,6 +15,7 @@ export class StaffPage implements OnInit {
   session: Session | null = null;
   bookings: Booking[] = [];
   search = '';
+  private bookingSub?: any;
 
   constructor(
     private bookingService: BookingService,
@@ -33,6 +34,12 @@ export class StaffPage implements OnInit {
     this.zone.run(() => {
       this.session = this.auth.getSession();
     });
+    this.bookingSub?.unsubscribe?.();
+    this.bookingSub = this.bookingService.changes$.subscribe(() => {
+      this.zone.run(() => {
+        this.bookings = this.bookingService.getAll();
+      });
+    });
     // LIVE bookings + concerts straight from Supabase (staff sees the whole door list)
     try {
       await Promise.all([
@@ -45,6 +52,10 @@ export class StaffPage implements OnInit {
     this.zone.run(() => {
       this.bookings = this.bookingService.getAll();
     });
+  }
+
+  ionViewWillLeave(): void {
+    this.bookingSub?.unsubscribe?.();
   }
 
   /** Pull-down-to-refresh refetches the whole door list. */

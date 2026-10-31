@@ -1,5 +1,6 @@
 import { Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { Booking, BookingService } from '../services/booking.service';
 import { Session, AuthService } from '../services/auth.service';
 import { Concert, ConcertService } from '../services/concert.service';
@@ -15,8 +16,11 @@ import { runRefresh } from '../utils/refresher';
 export class MyTicketsPage {
   session: Session | null = null;
   bookings: Booking[] = [];
+  search = '';
   now = Date.now();
   private ticker?: ReturnType<typeof setInterval>;
+  private bookingChangesSub?: Subscription;
+  private concertChangesSub?: Subscription;
 
   constructor(
     private bookingService: BookingService,
@@ -31,14 +35,30 @@ export class MyTicketsPage {
       this.session = this.auth.getSession();
     });
     const email = this.session?.email ?? '';
+
+    // Subscribe to live data changes so the list updates without a manual refresh.
+    this.bookingChangesSub?.unsubscribe();
+    this.concertChangesSub?.unsubscribe();
+    this.bookingChangesSub = this.bookingService.changes$.subscribe(() => {
+      this.zone.run(() => this.refreshBookingsList(email));
+    });
+    this.concertChangesSub = this.concertService.changes$.subscribe(() => {
+      this.zone.run(() => (this.now = Date.now()));
+    });
+
     // LIVE bookings from Supabase, then render
     try {
       await this.bookingService.hydrate();
     } catch {
       /* keep current cache */
     }
+    try {
+      await this.concertService.hydrate();
+    } catch {
+      /* keep current cache */
+    }
     this.zone.run(() => {
-      this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
+      this.refreshBookingsList(email);
       this.now = Date.now();
     });
     this.now = Date.now();
@@ -50,11 +70,27 @@ export class MyTicketsPage {
     });
   }
 
+  private refreshBookingsList(email: string): void {
+    const all = this.bookingService.getAll();
+    if (email) {
+      this.bookings = all.filter(
+        (b) => !b.customerEmail || b.customerEmail === email
+      );
+    } else {
+      this.bookings = [...all];
+    }
+    if (this.bookings.length === 0 && all.length > 0) {
+      this.bookings = [...all];
+    }
+  }
+
   ionViewWillLeave(): void {
     if (this.ticker) {
       clearInterval(this.ticker);
       this.ticker = undefined;
     }
+    this.bookingChangesSub?.unsubscribe();
+    this.concertChangesSub?.unsubscribe();
   }
 
   /** Pull-down-to-refresh refetches tickets straight from Supabase. */
@@ -68,7 +104,7 @@ export class MyTicketsPage {
         this.concertService.hydrate(),
       ]).catch(() => undefined);
       this.zone.run(() => {
-        this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
+        this.refreshBookingsList(email);
         this.now = Date.now();
       });
     });
@@ -105,6 +141,40 @@ export class MyTicketsPage {
       day: 'numeric',
       year: 'numeric',
     });
+  }
+
+  /** Filters the owned tickets by concert name, code, tier, seat, etc. */
+  filtered(): Booking[] {
+    const term = this.search.trim().toLowerCase();
+    if (!term) {
+      return this.bookings;
+    }
+    return this.bookings.filter((b) => {
+      const concert = this.concertOf(b);
+      const haystack = [
+        b.ticketCode,
+        b.tier,
+        b.paidVia,
+        concert?.name,
+        concert?.venue,
+        concert?.artist,
+        ...b.seats,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }
+
+  openTicket(b: Booking): void {
+    this.bookingService.selectedBooking = b;
+    try {
+      localStorage.setItem('vibetix:selectedTicket', b.ticketCode);
+    } catch {
+      /* ignore */
+    }
+    this.router.navigate(['/ticket', b.ticketCode], { state: { booking: b } });
   }
 
   goExplore(): void {

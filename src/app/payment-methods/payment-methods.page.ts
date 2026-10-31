@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { ToastController } from '@ionic/angular/lazy';
 import {
@@ -55,6 +55,7 @@ export class PaymentMethodsPage {
 
   private async refresh(): Promise<void> {
     const email = this.auth.getSession()?.email ?? '';
+    await this.auth.ensureSession().catch(() => undefined);
     await this.paymentService.hydrate(email);
     this.zone.run(() => {
       this.methods = this.paymentService.getMethods(email);
@@ -120,8 +121,8 @@ export class PaymentMethodsPage {
     this.gcashNumber = '';
     this.cardNumber = '';
     this.cardName = '';
-    this.toast('Payment method saved (masked, never fully stored).');
-    this.refresh();
+    await this.refresh();
+    this.toast('Payment method saved successfully.', 2500, 'success');
   }
 
   /** Turns a raw Postgres/PostgREST error into something actionable. */
@@ -159,8 +160,8 @@ export class PaymentMethodsPage {
             void (async () => {
               const email = this.auth.getSession()?.email ?? '';
               await this.paymentService.remove(email, method.id);
-              this.toast('Payment method removed.');
               await this.refresh();
+              this.toast('Payment method removed.', 2000, 'medium');
             })();
           },
         },
@@ -169,12 +170,12 @@ export class PaymentMethodsPage {
     await alert.present();
   }
 
-  private async toast(message: string, duration = 2000): Promise<void> {
+  private async toast(message: string, duration = 2000, color = 'dark'): Promise<void> {
     const toast = await this.toastCtrl.create({
       message,
       duration,
       position: 'top',
-      color: 'dark',
+      color,
     });
     await toast.present();
   }

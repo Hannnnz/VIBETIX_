@@ -1,0 +1,16 @@
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+import { TicketDetailPage } from './ticket-detail.page';
+
+const routes: Routes = [
+  {
+    path: '',
+    component: TicketDetailPage,
+  },
+];
+
+@NgModule({
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule],
+})
+export class TicketDetailPageRoutingModule {}

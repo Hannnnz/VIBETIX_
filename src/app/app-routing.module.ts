@@ -46,6 +46,14 @@ const routes: Routes = [
     loadChildren: () =>
       import('./payment/payment.module').then((m) => m.PaymentPageModule),
   },
+  {
+    path: 'ticket/:code',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./ticket-detail/ticket-detail.module').then(
+        (m) => m.TicketDetailPageModule
+      ),
+  },
   // Staff area with tab nav: Dashboard · Scan · Account. staff@gmail.com
   {
     path: 'staff',
