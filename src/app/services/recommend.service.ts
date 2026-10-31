@@ -89,7 +89,8 @@ export class RecommendService {
   // ── Signals ────────────────────────────────────────────────────────────
 
   /** ♥ toggled from the Explore card — also persisted to concert_loves. */
-  toggleLove(concert: Concert): boolean {
+  async toggleLove(concert: Concert): Promise<boolean> {
+    await this.auth.ensureSession().catch(() => undefined);
     const state = this.state(this.email());
     const id = concert.id;
     const delta = 1;
@@ -146,6 +147,7 @@ export class RecommendService {
 
   /** Loads the user's loved concerts from the DB on feed entry. */
   async hydrate(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
     try {
       const { data, error } = await this.sb.client
         .from('concert_loves')

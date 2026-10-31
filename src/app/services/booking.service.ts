@@ -98,7 +98,20 @@ export class BookingService {
 
     // Polling fallback so lists stay fresh even if realtime push isn't
     // enabled in the database (no manual pull-to-refresh required).
-    setInterval(() => void this.hydrate(), 5000);
+    // Only poll while the app is visible to avoid background lag/battery drain.
+    setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return;
+      }
+      void this.hydrate();
+    }, 8000);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          void this.hydrate();
+        }
+      });
+    }
   }
 
   private get client() {

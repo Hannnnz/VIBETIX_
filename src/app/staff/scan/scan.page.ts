@@ -1,5 +1,6 @@
 import { Component, ElementRef, NgZone, ViewChild } from '@angular/core';
 import { ToastController } from '@ionic/angular/lazy';
+import jsQR from 'jsqr';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
@@ -121,33 +122,36 @@ export class ScanPage {
   }
 
   private runDetection(): void {
-    const BarcodeDetectorCtor = (window as any).BarcodeDetector;
-    if (!BarcodeDetectorCtor) {
-      this.cameraError =
-        'Live QR decoding is not supported in this browser. Use manual entry below.';
-      return;
-    }
-    const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
     const video = this.scanVideo?.nativeElement;
     if (!video) {
       return;
     }
-    const tick = async () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      this.cameraError = 'Canvas not supported in this browser.';
+      return;
+    }
+
+    const tick = () => {
       if (!this.cameraActive || !this.stream) {
         return;
       }
-      try {
-        const codes = await detector.detect(video);
-        if (codes && codes.length > 0) {
-          const value = codes[0].rawValue;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert',
+        });
+        if (code && code.data) {
           this.zone.run(() => {
             this.stopCamera();
-            this.scanCode(value);
+            this.scanCode(code.data);
           });
           return;
         }
-      } catch {
-        /* ignore frame errors */
       }
       this.rafId = requestAnimationFrame(tick);
     };

@@ -4,6 +4,7 @@ import { ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { RecommendService } from '../services/recommend.service';
+import { AuthService } from '../services/auth.service';
 import { runRefresh } from '../utils/refresher';
 @Component({
   selector: 'app-concerts',
@@ -19,6 +20,7 @@ export class ConcertsPage {
   constructor(
     private concerts: ConcertService,
     private recommend: RecommendService,
+    private auth: AuthService,
     private router: Router,
     private toastCtrl: ToastController,
     private zone: NgZone
@@ -29,7 +31,8 @@ export class ConcertsPage {
     );
   }
 
-  ionViewWillEnter(): void {
+  async ionViewWillEnter(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
     // LIVE data from Supabase + personalized loves, then re-rank the feed.
     void this.concerts.hydrate().then(() =>
       this.zone.run(() =>
@@ -92,7 +95,7 @@ export class ConcertsPage {
 
   async toggleLove(concert: Concert, event: Event): Promise<void> {
     event.stopPropagation();
-    const loved = this.recommend.toggleLove(concert);
+    const loved = await this.recommend.toggleLove(concert);
     this.memo.key = ''; // force feed re-rank
     const toast = await this.toastCtrl.create({
       message: loved

@@ -98,7 +98,19 @@ export class ConcertService {
       )
       .subscribe();
 
-    setInterval(() => void this.hydrate(), 5000);
+    setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return;
+      }
+      void this.hydrate();
+    }, 8000);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          void this.hydrate();
+        }
+      });
+    }
   }
 
   private get client() {
