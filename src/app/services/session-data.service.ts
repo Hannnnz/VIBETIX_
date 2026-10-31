@@ -33,7 +33,7 @@ export class SessionDataService {
    * Preloads concerts, bookings, saved payment methods and taste signals.
    * Always resolves — a slow/offline network must never block the UI.
    */
-  warm(session: Session | null, timeoutMs = 8000): Promise<void> {
+  warm(session: Session | null, timeoutMs = 15000): Promise<void> {
     if (!session) {
       return Promise.resolve();
     }

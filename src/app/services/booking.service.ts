@@ -192,14 +192,13 @@ export class BookingService {
       }
 
       if (!bookingRows) {
-        // Direct fallback (works when RLS is healthy).
+        // Direct fallback (works when RLS is healthy). For customers we rely
+        // on RLS (customer_id = auth.uid()) instead of a client-side filter,
+        // so a stale/empty uid can never hide the user's own bookings.
         let q = this.client
           .from('bookings')
           .select('*')
           .order('created_at', { ascending: false });
-        if (!isElevated) {
-          q = q.eq('customer_id', uid);
-        }
         const { data, error } = await q;
         if (error || !data) {
           this.lastHydrateError =
