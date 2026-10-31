@@ -64,6 +64,9 @@ export class BookingService {
   currentUserId = '';
   currentUserEmail = '';
 
+  /** Booking ids that have been checked in at the gate. */
+  checkedInIds = new Set<string>();
+
   /** The ticket the user opened in the detail view (avoids fragile code lookups). */
   selectedBooking: Booking | null = null;
 
@@ -138,7 +141,11 @@ export class BookingService {
       paidVia: row.paid_via,
       quantity: row.quantity,
       total: Number(row.total_amount ?? row.unit_price * row.quantity),
-      status: row.status === 'paid' ? 'active' : 'checked-in',
+      status: this.checkedInIds.has(row.id)
+        ? 'checked-in'
+        : row.status === 'paid'
+          ? 'active'
+          : 'checked-in',
       createdAt: row.created_at,
     };
   }
@@ -267,6 +274,20 @@ export class BookingService {
           }
         }
       }
+
+      // Fetch which bookings have been checked in at the gate.
+      const checkedIn = new Set<string>();
+      try {
+        const { data: checkins } = await this.client
+          .from('check_ins')
+          .select('booking_id');
+        (checkins ?? []).forEach((c: { booking_id: string }) => {
+          checkedIn.add(c.booking_id);
+        });
+      } catch {
+        /* optional */
+      }
+      this.checkedInIds = checkedIn;
 
       const rows: BookingRow[] = (bookingRows as any[]).map((r) => {
         const prof = isElevated
@@ -457,6 +478,19 @@ export class BookingService {
       if (msg.includes('ALREADY_USED')) return { ok: false, reason: 'already-used' };
       if (msg.includes('NOT_PAID')) return { ok: false, reason: 'not-paid' };
       return { ok: false, reason: msg };
+    }
+    const booking = this.bookings.find(
+      (b) => b.ticketCode === ticketCode.trim().toUpperCase()
+    );
+    if (booking) {
+      this.checkedInIds.add(booking.id);
+      this.zone.run(() => {
+        const idx = this.bookings.findIndex((b) => b.id === booking.id);
+        if (idx >= 0) {
+          this.bookings[idx] = { ...this.bookings[idx], status: 'checked-in' };
+        }
+        this.changes$.next();
+      });
     }
     void this.hydrate(); // refresh local list/stat
     const payload = data as { ticket_code: string; seats: string[]; tier: string };
