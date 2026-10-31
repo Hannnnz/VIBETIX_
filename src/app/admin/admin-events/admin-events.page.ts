@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../../services/concert.service';
-import { completeRefresher } from '../../utils/refresher';
+import { runRefresh } from '../../utils/refresher';
 
 @Component({
   selector: 'app-admin-events',
@@ -37,8 +37,7 @@ export class AdminEventsPage {
 
   /** Pull-down-to-refresh refetches the event catalog. */
   async doRefresh(event: Event): Promise<void> {
-    await this.concertService.hydrate().catch(() => undefined);
-    completeRefresher(event);
+    await runRefresh(event, () => this.concertService.hydrate());
   }
 
   edit(concert: Concert): void {

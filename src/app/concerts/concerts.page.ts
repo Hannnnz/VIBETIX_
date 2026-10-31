@@ -4,7 +4,7 @@ import { ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { RecommendService } from '../services/recommend.service';
-import { completeRefresher } from '../utils/refresher';
+import { runRefresh } from '../utils/refresher';
 @Component({
   selector: 'app-concerts',
   templateUrl: './concerts.page.html',
@@ -42,9 +42,10 @@ export class ConcertsPage {
 
   /** Pull-down-to-refresh refetches the feed + recommendations. */
   async doRefresh(event: Event): Promise<void> {
-    await Promise.all([this.concerts.hydrate(), this.recommend.hydrate()]);
-    this.zone.run(() => (this.memo = { key: '', list: [] }));
-    completeRefresher(event);
+    await runRefresh(event, async () => {
+      await Promise.all([this.concerts.hydrate(), this.recommend.hydrate()]);
+      this.zone.run(() => (this.memo = { key: '', list: [] }));
+    });
   }
 
   /**

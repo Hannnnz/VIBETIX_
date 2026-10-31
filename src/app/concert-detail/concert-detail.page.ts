@@ -1,10 +1,11 @@
 import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { AuthService } from '../services/auth.service';
 import { SupabaseService } from '../services/supabase.service';
-import { completeRefresher } from '../utils/refresher';
+import { runRefresh } from '../utils/refresher';
 
 interface TicketTier {
   id?: string;
@@ -39,7 +40,8 @@ export class ConcertDetailPage implements OnInit {
     public auth: AuthService,
     private sb: SupabaseService,
     private zone: NgZone,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private toastCtrl: ToastController
   ) {}
 
   ngOnInit(): void {
@@ -52,8 +54,7 @@ export class ConcertDetailPage implements OnInit {
 
   /** Pull-down-to-refresh refetches the event + taken seats. */
   async doRefresh(event: Event): Promise<void> {
-    await this.load();
-    completeRefresher(event);
+    await runRefresh(event, () => this.load());
   }
 
   async load(): Promise<void> {
@@ -168,13 +169,31 @@ export class ConcertDetailPage implements OnInit {
 
   /** Hands the order over to the checkout / payment page. */
   async buy(): Promise<void> {
+    await this.auth.ensureSession().catch(() => undefined);
     const session = this.auth.getSession();
     if (!session || !this.concert) {
+      void this.toast('Please sign in again to continue checkout.', 'primary');
       return;
     }
     if (!this.selectedTier || this.selected.size === 0) {
       return;
     }
+
+    // Re-check availability right before checkout: if someone else grabbed
+    // one of these seats while this page was open, don't send the customer
+    // into a failing payment — drop the seats and say so immediately.
+    await this.loadTakenSeats();
+    const conflict = [...this.selected].filter((seat) => this.taken.has(seat));
+    if (conflict.length > 0) {
+      this.selected = new Set([...this.selected].filter((seat) => !this.taken.has(seat)));
+      this.cdr.detectChanges();
+      void this.toast(
+        `${conflict.join(', ')} just sold out — pick another seat.`,
+        'warning'
+      );
+      return;
+    }
+
     this.router.navigate(['/payment'], {
       queryParams: {
         id: this.concert.id,
@@ -184,5 +203,15 @@ export class ConcertDetailPage implements OnInit {
         seats: this.seats().join(','),
       },
     });
+  }
+
+  private async toast(message: string, color = 'dark'): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2400,
+      position: 'top',
+      color,
+    });
+    await toast.present();
   }
 }

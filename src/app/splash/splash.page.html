@@ -1,16 +1,27 @@
 <ion-content [fullscreen]="true" class="splash-content">
   <div class="stage">
+    <!-- Ambient light + expanding rings (GPU-only transforms) -->
+    <div class="ambient" aria-hidden="true">
+      <span class="orb orb-1"></span>
+      <span class="orb orb-2"></span>
+      <span class="ring ring-1"></span>
+      <span class="ring ring-2"></span>
+    </div>
+
     <div class="logo-wrap">
-      <span class="note n1">🎶</span>
-      <span class="note n2">✨</span>
-      <h1 class="brand">
-        <span class="letter" *ngFor="let l of letters">{{ l }}</span>
+      <span class="note n1" aria-hidden="true">🎶</span>
+      <span class="note n2" aria-hidden="true">✨</span>
+      <span class="note n3" aria-hidden="true">🎵</span>
+
+      <h1 class="brand" aria-label="VIBETIX">
+        <span class="letter" *ngFor="let l of letters; let i = index" [style.--i]="i">{{ l }}</span>
       </h1>
+
       <div class="red-line"></div>
       <p class="tagline">Concert tickets · In seconds</p>
     </div>
 
-    <div class="loader-track">
+    <div class="loader-track" aria-hidden="true">
       <div class="loader-fill"></div>
     </div>
   </div>

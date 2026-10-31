@@ -295,33 +295,64 @@ export class PaymentPage implements OnInit {
    * then only create the booking once the receiver check has passed.
    */
   private async settle(paidVia: string): Promise<void> {
+    if (this.step === 'processing') {
+      return; // already charging — ignore double taps
+    }
     if (!this.concert) {
       this.toast('Event not found — please go back and reopen it.');
       return;
     }
+    await this.auth.ensureSession().catch(() => undefined);
     const session = this.auth.getSession();
     if (!session) {
+      this.toast('Your session expired — please sign in again.');
+      void this.router.navigate(['/login'], { replaceUrl: true });
       return;
     }
 
     this.step = 'processing';
+
+    // Final availability check: never take money for a seat that sold while
+    // the customer was in checkout.
+    const taken = await this.bookingService.takenSeats(this.concert.id);
+    const conflict = this.seats.filter((seat) => taken.has(seat.trim().toUpperCase()));
+    if (conflict.length > 0) {
+      this.toast(`${conflict.join(', ')} just sold out — pick another seat.`);
+      this.backToSelect();
+      return;
+    }
 
     // Simulated gateway: receiver account matched, funds captured.
     this.zone.runOutsideAngular(() => {
       setTimeout(() => {
         this.zone.run(async () => {
           // REAL backend call: Postgres place_booking — server-computed price,
-          // DB-level seat locking ('Seat already taken' if someone beat us)
-          const booking = await this.bookingService.create(
-            this.concert!.id,
-            this.tierId,
-            this.tierName,
-            this.seats,
-            paidVia
-          );
+          // DB-level seat locking ('Seat already taken' if someone beat us).
+          // Hard timeout so a dead network can't leave the spinner forever.
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const timeout = new Promise<null>((resolve) => {
+            timer = setTimeout(() => resolve(null), 20000);
+          });
+          const booking = await Promise.race([
+            this.bookingService.create(
+              this.concert!.id,
+              this.tierId,
+              this.tierName,
+              this.seats,
+              paidVia
+            ),
+            timeout,
+          ]).finally(() => {
+            if (timer) {
+              clearTimeout(timer);
+            }
+          });
+
           if (!booking) {
-            this.toast('Seat conflict or payment issue — pick seats again.');
-            this.step = 'select';
+            const reason =
+              this.bookingService.lastError ||
+              'Payment could not be completed — the server took too long. Check your connection and try again.';
+            this.toast(reason);
             this.backToSelect();
             return;
           }
@@ -330,7 +361,7 @@ export class PaymentPage implements OnInit {
           this.lastCode = booking.ticketCode;
           this.step = 'success';
         });
-      }, 1900);
+      }, 1500);
     });
   }
 
@@ -353,7 +384,7 @@ export class PaymentPage implements OnInit {
   private async toast(message: string): Promise<void> {
     const toast = await this.toastCtrl.create({
       message,
-      duration: 2200,
+      duration: 4200,
       position: 'top',
       color: 'dark',
       icon: 'shield-checkmark-outline',

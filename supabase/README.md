@@ -4,9 +4,12 @@ The app is now backed by a real database. Project: `https://vtocnpgguwggpgvvylzn
 
 ## One-time setup checklist (in Supabase dashboard)
 
-1. **Run the patch script** (Security rules + backend functions):
+1. **Run the patch scripts** (Security rules + backend functions):
    - SQL Editor → paste **`supabase/patch.sql`** → Run.
+   - SQL Editor → paste **`supabase/fix-checkout.sql`** → Run.
    - This is idempotent — safe even if you already ran other SQL.
+   - Until `fix-checkout.sql` has been run, the project has no
+     `place_booking` / `check_in_ticket` functions and checkout will fail.
 2. **Turn OFF email confirmation** (fastest demo path):
    - Authentication → Providers → Email → toggle **"Confirm email"** off → Save.
    - (Leave it on if you want verification emails — the register page handles it.)

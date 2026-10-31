@@ -4,7 +4,7 @@ import { Booking, BookingService } from '../services/booking.service';
 import { Session, AuthService } from '../services/auth.service';
 import { Concert, ConcertService } from '../services/concert.service';
 import { eventDateTime, countdownString } from '../utils/countdown';
-import { completeRefresher } from '../utils/refresher';
+import { runRefresh } from '../utils/refresher';
 
 @Component({
   selector: 'app-my-tickets',
@@ -59,16 +59,19 @@ export class MyTicketsPage {
 
   /** Pull-down-to-refresh refetches tickets straight from Supabase. */
   async doRefresh(event: Event): Promise<void> {
-    const email = this.session?.email ?? '';
-    await Promise.all([
-      this.bookingService.hydrate(),
-      this.concertService.hydrate(),
-    ]).catch(() => undefined);
-    this.zone.run(() => {
-      this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
-      this.now = Date.now();
+    await runRefresh(event, async () => {
+      await this.auth.ensureSession().catch(() => undefined);
+      const email = this.auth.getSession()?.email ?? this.session?.email ?? '';
+      this.zone.run(() => (this.session = this.auth.getSession()));
+      await Promise.all([
+        this.bookingService.hydrate(),
+        this.concertService.hydrate(),
+      ]).catch(() => undefined);
+      this.zone.run(() => {
+        this.bookings = email ? this.bookingService.getBookingsFor(email) : [];
+        this.now = Date.now();
+      });
     });
-    completeRefresher(event);
   }
 
   /** Concert info for a booking (used for emoji / gradient / venue display). */

@@ -37,8 +37,8 @@
       ></ion-input>
     </ion-item>
 
-    <ion-button expand="block" class="login-btn" (click)="login()">
-      Sign in
+    <ion-button expand="block" class="login-btn" (click)="login()" [disabled]="signingIn">
+      {{ signingIn ? 'Signing in…' : 'Sign in' }}
     </ion-button>
 
     <div class="login-foot">

@@ -1,4 +1,5 @@
 import { Injectable, NgZone } from '@angular/core';
+import { Subject } from 'rxjs';
 
 import { Session } from './auth.service';
 import { SupabaseService } from './supabase.service';
@@ -50,6 +51,12 @@ interface BookingRow {
 @Injectable({ providedIn: 'root' })
 export class BookingService {
   bookings: Booking[] = [];
+
+  /** Human-readable reason of the last failed booking (shown at checkout). */
+  lastError = '';
+
+  /** Emits after the local booking cache changes (refetch / new booking). */
+  readonly changes$ = new Subject<void>();
 
   constructor(
     private sb: SupabaseService,
@@ -120,6 +127,7 @@ export class BookingService {
   private cacheRows(rows: BookingRow[], email: string, name: string): void {
     this.zone.run(() => {
       this.bookings = rows.map((r) => this.map(r, email, name));
+      this.changes$.next();
     });
   }
 
@@ -134,15 +142,17 @@ export class BookingService {
     seats: string[],
     paidVia: string
   ): Promise<Booking | null> {
+    this.lastError = '';
     const params = {
       p_concert_id: concertId,
       p_tier_id: tierId,
       p_tier_name: tierName,
-      p_seat_codes: seats.map((s) => s.toUpperCase()),
+      p_seat_codes: seats.map((s) => s.trim().toUpperCase()),
       p_paid_via: paidVia,
     };
     const { data, error } = await this.client.rpc('place_booking', params);
     if (error) {
+      this.lastError = this.explainError(error);
       console.error('place_booking failed:', error.message);
       return null;
     }
@@ -175,8 +185,63 @@ export class BookingService {
     };
     this.zone.run(() => {
       this.bookings = [booking, ...this.bookings];
+      this.changes$.next();
     });
     return booking;
+  }
+
+  /** Seat codes that are already sold for a concert (always fresh). */
+  async takenSeats(concertId: string): Promise<Set<string>> {
+    try {
+      const { data, error } = await this.client
+        .from('seats')
+        .select('seat_code')
+        .eq('concert_id', concertId);
+      if (error || !data) {
+        return new Set();
+      }
+      return new Set(
+        (data as { seat_code: string }[]).map((row) => row.seat_code.toUpperCase())
+      );
+    } catch {
+      return new Set();
+    }
+  }
+
+  /**
+   * Turns raw PostgREST/Postgres errors into something a customer can act on.
+   * In particular, a missing `place_booking` RPC used to surface only as the
+   * misleading "Seat conflict or payment issue".
+   */
+  private explainError(error: {
+    message?: string;
+    details?: string;
+    hint?: string;
+    code?: string;
+  }): string {
+    const text = [error?.message, error?.details, error?.hint]
+      .filter(Boolean)
+      .join(' ');
+
+    if (/could not find the function|schema cache|PGRST202/i.test(text)) {
+      return 'Checkout backend is not installed yet — run supabase/fix-checkout.sql in the Supabase SQL Editor, then try again.';
+    }
+    if (/seat already taken|duplicate key|unique constraint/i.test(text)) {
+      return 'Those seats were just taken — pick different seats and try again.';
+    }
+    if (/sign in first|not authenticated|jwt|session.*expired|row-level security/i.test(text)) {
+      return 'Your session expired — please sign in again.';
+    }
+    if (/ticket tier not found/i.test(text)) {
+      return 'That ticket class is no longer available for this event.';
+    }
+    if (/concert not found/i.test(text)) {
+      return 'This event is no longer available.';
+    }
+    if (/pick between 1 and 6 seats/i.test(text)) {
+      return 'Pick between 1 and 6 seats.';
+    }
+    return error?.message || 'Payment could not be completed — please try again.';
   }
 
   getAll(): Booking[] {

@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
 import { AuthService } from '../services/auth.service';
+import { SessionDataService } from '../services/session-data.service';
 
 @Component({
   selector: 'app-register',
@@ -22,7 +23,8 @@ export class RegisterPage {
   constructor(
     private auth: AuthService,
     private router: Router,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private data: SessionDataService
   ) {}
 
   async submit(): Promise<void> {
@@ -54,6 +56,7 @@ export class RegisterPage {
     }
 
     if (this.role === 'staff') {
+      await this.data.warm(session, 4000);
       const staffToast = await this.toastCtrl.create({
         message: `Welcome, ${session.name}! One more step: join your company.`,
         duration: 2400,
@@ -72,6 +75,7 @@ export class RegisterPage {
       color: 'success',
     });
     await toast.present();
+    await this.data.warm(session);
     this.router.navigateByUrl('/tabs/concerts', { replaceUrl: true });
   }
 

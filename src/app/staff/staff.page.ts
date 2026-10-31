@@ -3,7 +3,7 @@ import { ToastController } from '@ionic/angular/lazy';
 import { Booking, BookingService } from '../services/booking.service';
 import { Concert, ConcertService } from '../services/concert.service';
 import { AuthService, Session } from '../services/auth.service';
-import { completeRefresher } from '../utils/refresher';
+import { runRefresh } from '../utils/refresher';
 
 @Component({
   selector: 'app-staff',
@@ -49,9 +49,16 @@ export class StaffPage implements OnInit {
 
   /** Pull-down-to-refresh refetches the whole door list. */
   async doRefresh(event: Event): Promise<void> {
-    await this.bookingService.hydrate().catch(() => undefined);
-    this.zone.run(() => (this.bookings = this.bookingService.getAll()));
-    completeRefresher(event);
+    await runRefresh(event, async () => {
+      await Promise.all([
+        this.bookingService.hydrate(),
+        this.concertService.hydrate(),
+      ]);
+      this.zone.run(() => {
+        this.session = this.auth.getSession();
+        this.bookings = this.bookingService.getAll();
+      });
+    });
   }
 
   stats() {

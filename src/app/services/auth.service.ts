@@ -1,4 +1,5 @@
 import { Injectable, NgZone } from '@angular/core';
+import { Subject } from 'rxjs';
 
 import { SupabaseService } from './supabase.service';
 
@@ -51,10 +52,54 @@ export class AuthService {
   rememberedEmail = '';
   rememberMe = false;
 
+  /**
+   * Fires whenever the signed-in user changes (login / logout / session
+   * restored / token refreshed). Pages and services use it to refetch on
+   * their own instead of waiting for a manual pull-to-refresh.
+   */
+  readonly changes$ = new Subject<Session | null>();
+
   constructor(
     private sb: SupabaseService,
     private zone: NgZone
-  ) {}
+  ) {
+    this.bindAuthEvents();
+  }
+
+  /**
+   * Keeps the synchronous profile cache in lock-step with Supabase.
+   * Without this, a session restored/refreshed by the client (e.g. after
+   * the app returns from background) left the UI showing stale/empty data
+   * until the user refreshed every page.
+   */
+  private bindAuthEvents(): void {
+    this.client.auth.onAuthStateChange((event, session) => {
+      const user = session?.user;
+      // Defer: the Supabase callback must not run queries synchronously.
+      setTimeout(() => {
+        if (!user) {
+          if (event === 'SIGNED_OUT' && (this.current || this.profile)) {
+            this.zone.run(() => {
+              this.current = null;
+              this.profile = null;
+              this.companyCodeValue = null;
+              this.changes$.next(null);
+            });
+          }
+          return;
+        }
+        if (this.profile?.id === user.id) {
+          return; // already cached (login / register path)
+        }
+        void this.cacheFrom(user.id).then(() => {
+          if (this.current) {
+            void this.loadCompanyCode().catch(() => undefined);
+            this.zone.run(() => this.changes$.next(this.current));
+          }
+        });
+      }, 0);
+    });
+  }
 
   private get client() {
     return this.sb.client;
@@ -80,6 +125,7 @@ export class AuthService {
     if (row && this.rememberMe) {
       this.rememberedEmail = row.email;
     }
+    this.zone.run(() => this.changes$.next(this.current));
   }
 
   private cacheFrom(userId: string): Promise<void> {
@@ -146,6 +192,7 @@ export class AuthService {
     }
     this.lastLoginError = null;
     await this.cacheFrom(data.user.id);
+    this.readyPromise = Promise.resolve();
     void this.loadCompanyCode();
     return this.current;
   }
@@ -180,6 +227,7 @@ export class AuthService {
       return null;
     }
     await this.cacheFrom(data.user.id);
+    this.readyPromise = Promise.resolve();
     void this.loadCompanyCode();
     return this.current;
   }
@@ -198,7 +246,11 @@ export class AuthService {
     this.current = null;
     this.profile = null;
     this.companyCodeValue = null;
-    this.client.auth.signOut();
+    // The restore promise stays resolved — we don't want a guard to pick up
+    // the (still persisted for a few ms) session while sign-out runs.
+    this.readyPromise = Promise.resolve();
+    this.zone.run(() => this.changes$.next(null));
+    await this.client.auth.signOut().catch(() => undefined);
   }
 
   async getSessionEmail(): Promise<string> {
@@ -207,6 +259,25 @@ export class AuthService {
     }
     const { data } = await this.client.auth.getUser();
     return data.user?.email ?? '';
+  }
+
+  /**
+   * Re-reads the signed-in profile from Supabase. Used when the app comes
+   * back from the background (or any time the UI needs a hard refresh of
+   * the role/name cache).
+   */
+  async refreshProfile(): Promise<Session | null> {
+    try {
+      const { data } = await this.client.auth.getSession();
+      const user = data.session?.user;
+      if (!user) {
+        return this.current;
+      }
+      await this.cacheFrom(user.id);
+      return this.current;
+    } catch {
+      return this.current;
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────

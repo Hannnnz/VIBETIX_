@@ -1,7 +1,12 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../services/auth.service';
+
+/** Give the brand animation time to finish before leaving. */
+const MIN_SHOW_MS = 2000;
+/** Never keep the user on the splash for longer than this, even offline. */
+const MAX_WAIT_MS = 5000;
 
 @Component({
   selector: 'app-splash',
@@ -9,8 +14,11 @@ import { AuthService } from '../services/auth.service';
   styleUrls: ['./splash.page.scss'],
   standalone: false,
 })
-export class SplashPage {
+export class SplashPage implements OnDestroy {
   letters = ['V', 'I', 'B', 'E', 'T', 'I', 'X'];
+
+  private timer?: ReturnType<typeof setTimeout>;
+  private leaving = false;
 
   constructor(
     private auth: AuthService,
@@ -18,16 +26,51 @@ export class SplashPage {
     private zone: NgZone
   ) {}
 
-  async ionViewWillEnter(): Promise<void> {
-    // Brand animation runs while the persisted Supabase session restores.
-    this.zone.runOutsideAngular(() => {
-      setTimeout(() => {
-        this.zone.run(async () => {
-          await this.auth.ensureSession();
-          const target = this.auth.getSession() ? this.auth.roleHome : '/login';
-          this.router.navigateByUrl(target, { replaceUrl: true });
-        });
-      }, 2400);
+  ionViewWillEnter(): void {
+    const startedAt = Date.now();
+
+    // The Supabase client is already warm (APP_INITIALIZER connects it as
+    // soon as the app boots). Restore the persisted session in parallel
+    // with the animation, but cap the wait so a slow network never blocks.
+    const restored = this.auth.ensureSession().catch(() => undefined);
+    void Promise.race([restored, this.sleep(MAX_WAIT_MS)]).then(() => {
+      const remaining = Math.max(0, MIN_SHOW_MS - (Date.now() - startedAt));
+      this.zone.runOutsideAngular(() => {
+        this.timer = setTimeout(() => this.zone.run(() => this.leave()), remaining);
+      });
     });
+  }
+
+  ionViewWillLeave(): void {
+    this.clearTimer();
+  }
+
+  ionViewDidLeave(): void {
+    this.clearTimer();
+  }
+
+  ngOnDestroy(): void {
+    this.clearTimer();
+  }
+
+  private leave(): void {
+    if (this.leaving) {
+      return;
+    }
+    this.leaving = true;
+    this.clearTimer();
+    const target = this.auth.getSession() ? this.auth.roleHome : '/login';
+    void this.router.navigateByUrl(target, { replaceUrl: true });
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private clearTimer(): void {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
   }
 }

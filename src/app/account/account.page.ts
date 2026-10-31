@@ -3,7 +3,7 @@ import { AlertController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 import { AuthService, Session } from '../services/auth.service';
 import { PaymentService, SavedMethod } from '../services/payment.service';
-import { completeRefresher } from '../utils/refresher';
+import { runRefresh } from '../utils/refresher';
 
 @Component({
   selector: 'app-account',
@@ -87,29 +87,32 @@ export class AccountPage implements OnInit {
 
   /** Pull-down-to-refresh refetches profile extras + saved methods. */
   async doRefresh(event: Event): Promise<void> {
-    this.session = this.auth.getSession();
-    const email = this.session?.email ?? '';
-    const jobs: Promise<void>[] = [
-      this.paymentService.hydrate(email).then(() => {
-        this.zone.run(() => (this.methods = this.paymentService.getMethods(email)));
-      }),
-    ];
-    if (this.session?.role === 'admin') {
-      jobs.push(
-        this.auth.staffAccounts().then((staff) => {
-          this.zone.run(() => (this.staffCount = staff.length));
-        })
-      );
-    }
-    if (this.session?.role === 'admin' || this.session?.role === 'staff') {
-      jobs.push(
-        this.auth.refreshCompanyCode().then((code) => {
-          this.zone.run(() => (this.companyCode = code || 'unavailable'));
-        })
-      );
-    }
-    await Promise.all(jobs.map((p) => p.catch(() => undefined)));
-    completeRefresher(event);
+    await runRefresh(event, async () => {
+      // A cold start may not have restored the profile yet — do it first.
+      await this.auth.ensureSession().catch(() => undefined);
+      this.zone.run(() => (this.session = this.auth.getSession()));
+      const email = this.session?.email ?? '';
+      const jobs: Promise<void>[] = [
+        this.paymentService.hydrate(email).then(() => {
+          this.zone.run(() => (this.methods = this.paymentService.getMethods(email)));
+        }),
+      ];
+      if (this.session?.role === 'admin') {
+        jobs.push(
+          this.auth.staffAccounts().then((staff) => {
+            this.zone.run(() => (this.staffCount = staff.length));
+          })
+        );
+      }
+      if (this.session?.role === 'admin' || this.session?.role === 'staff') {
+        jobs.push(
+          this.auth.refreshCompanyCode().then((code) => {
+            this.zone.run(() => (this.companyCode = code || 'unavailable'));
+          })
+        );
+      }
+      await Promise.all(jobs.map((p) => p.catch(() => undefined)));
+    });
   }
 
   get isCustomer(): boolean {

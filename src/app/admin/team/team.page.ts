@@ -4,7 +4,7 @@ import { ToastController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 
 import { AuthService, AppUser } from '../../services/auth.service';
-import { completeRefresher } from '../../utils/refresher';
+import { runRefresh } from '../../utils/refresher';
 
 @Component({
   selector: 'app-team',
@@ -55,11 +55,12 @@ export class TeamPage implements OnInit {
 
   /** Pull-down-to-refresh refetches the staff list + join state. */
   async doRefresh(event: Event): Promise<void> {
-    await Promise.all([
-      this.auth.refreshCompanyCode().then(() => undefined),
-      this.refresh().catch(() => undefined),
-    ]);
-    completeRefresher(event);
+    await runRefresh(event, async () => {
+      await Promise.all([
+        this.auth.refreshCompanyCode().then(() => undefined),
+        this.refresh().catch(() => undefined),
+      ]);
+    });
   }
 
   get companyCode(): string {
