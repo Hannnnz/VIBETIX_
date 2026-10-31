@@ -1,4 +1,4 @@
-import { Component, NgZone, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { ToastController } from '@ionic/angular/lazy';
 import { Booking, BookingService } from '../services/booking.service';
 import { Concert, ConcertService } from '../services/concert.service';
@@ -22,7 +22,8 @@ export class StaffPage implements OnInit {
     private concertService: ConcertService,
     private auth: AuthService,
     private toastCtrl: ToastController,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -97,6 +98,10 @@ export class StaffPage implements OnInit {
     return this.concertService.getById(booking.concertId);
   }
 
+  get checkedInCodesSize(): number {
+    return (window as any).__vibetix?.checkedInCodes?.length ?? 0;
+  }
+
   dateLabel(date: string): string {
     return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
@@ -113,6 +118,7 @@ export class StaffPage implements OnInit {
     const outcome = await this.bookingService.gateCheckIn(booking.ticketCode);
     if (outcome.ok) {
       this.bookings = this.bookingService.getAll();
+      this.cdr.detectChanges();
     }
     const toast = await this.toastCtrl.create({
       message: outcome.ok

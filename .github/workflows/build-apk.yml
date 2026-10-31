@@ -68,8 +68,8 @@ jobs:
           "$APKSIGNER" sign --ks "$KS" --ks-key-alias vibetix \
             --ks-pass pass:vibetix123 --key-pass pass:vibetix123 \
             --out /tmp/vibetix-release.apk "$APK"
-          cp /tmp/vibetix-release.apk ./VIBETIX-v1.apk
-          ls -la ./VIBETIX-v1.apk
+          cp /tmp/vibetix-release.apk ./VIBETIX-v1.3.apk
+          ls -la ./VIBETIX-v1.3.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

@@ -64,11 +64,16 @@ export class BookingService {
   currentUserId = '';
   currentUserEmail = '';
 
-  /** Booking ids that have been checked in at the gate. */
-  checkedInIds = new Set<string>();
+  /** Booking ids that have been checked in at the gate (static so all instances share). */
+  static checkedInIds = new Set<string>();
+  /** Ticket codes that have been checked in at the gate (static fallback key). */
+  static checkedInCodes = new Set<string>();
 
   /** The ticket the user opened in the detail view (avoids fragile code lookups). */
   selectedBooking: Booking | null = null;
+
+  /** Number of check-ins visible to the current user (from DB). */
+  checkedInCount = 0;
 
   private realtimeTimer?: ReturnType<typeof setTimeout>;
 
@@ -108,6 +113,27 @@ export class BookingService {
       }
       void this.hydrate();
     }, 8000);
+
+    // Global debug helper for the browser console.
+    try {
+      (window as any).__vibetixCheckIn = (code: string) => {
+        const c = (code || '').trim().toUpperCase();
+        BookingService.checkedInCodes.add(c);
+        try {
+          localStorage.setItem(
+            'vibetix:checkedInCodes',
+            JSON.stringify([...BookingService.checkedInCodes])
+          );
+        } catch {
+          /* ignore */
+        }
+        (window as any).__checkedInCodes = [...BookingService.checkedInCodes];
+        void this.hydrate();
+        return BookingService.checkedInCodes.size;
+      };
+    } catch {
+      /* ignore */
+    }
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
@@ -141,7 +167,8 @@ export class BookingService {
       paidVia: row.paid_via,
       quantity: row.quantity,
       total: Number(row.total_amount ?? row.unit_price * row.quantity),
-      status: this.checkedInIds.has(row.id)
+      status: BookingService.checkedInIds.has(row.id) ||
+        BookingService.checkedInCodes.has((row.ticket_code || '').trim().toUpperCase())
         ? 'checked-in'
         : row.status === 'paid'
           ? 'active'
@@ -208,6 +235,10 @@ export class BookingService {
         const { data, error } = await this.client.rpc(rpcName);
         if (!error && Array.isArray(data)) {
           bookingRows = data;
+          if (bookingRows.length === 0 && isElevated) {
+            // Try the direct query as a fallback.
+            bookingRows = null;
+          }
         } else {
           fetchError = error ?? { message: 'RPC unavailable.' };
         }
@@ -229,6 +260,10 @@ export class BookingService {
             fetchError?.message || error?.message || 'No data returned.';
           console.error('bookings hydrate failed:', error?.message ?? fetchError?.message);
           return;
+        }
+        if ((data as any[]).length === 0 && isElevated) {
+          this.lastHydrateError =
+            'No bookings returned. Run supabase/fix-checkout.sql in the Supabase SQL Editor.';
         }
         bookingRows = data as any[];
       }
@@ -278,16 +313,50 @@ export class BookingService {
       // Fetch which bookings have been checked in at the gate.
       const checkedIn = new Set<string>();
       try {
-        const { data: checkins } = await this.client
+        const { data: checkins, error: ciErr } = await this.client
           .from('check_ins')
           .select('booking_id');
+        if (ciErr) {
+          this.lastHydrateError = 'check_ins: ' + ciErr.message;
+        }
         (checkins ?? []).forEach((c: { booking_id: string }) => {
           checkedIn.add(c.booking_id);
         });
-      } catch {
-        /* optional */
+        this.checkedInCount = Math.max(this.checkedInCount, (checkins ?? []).length);
+      } catch (e) {
+        this.lastHydrateError = 'check_ins: ' + (e as Error)?.message;
       }
-      this.checkedInIds = checkedIn;
+      // Merge with any locally recorded check-ins (survives refresh even if
+      // the check_ins RLS query is blocked).
+      try {
+        const raw = localStorage.getItem('vibetix:checkedIn');
+        if (raw) {
+          JSON.parse(raw).forEach((id: string) => checkedIn.add(id));
+        }
+      } catch {
+        /* ignore */
+      }
+      const codes = new Set(BookingService.checkedInCodes);
+      try {
+        const rawCodes = localStorage.getItem('vibetix:checkedInCodes');
+        if (rawCodes) {
+          JSON.parse(rawCodes).forEach((c: string) =>
+            codes.add((c || '').trim().toUpperCase())
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+      try {
+        const w = (window as any).__checkedInCodes;
+        if (Array.isArray(w)) {
+          w.forEach((c: string) => codes.add((c || '').trim().toUpperCase()));
+        }
+      } catch {
+        /* ignore */
+      }
+      BookingService.checkedInCodes = codes;
+      BookingService.checkedInIds = checkedIn;
 
       const rows: BookingRow[] = (bookingRows as any[]).map((r) => {
         const prof = isElevated
@@ -475,23 +544,80 @@ export class BookingService {
     if (error) {
       const msg = error.message;
       if (msg.includes('NOT_FOUND')) return { ok: false, reason: 'invalid' };
-      if (msg.includes('ALREADY_USED')) return { ok: false, reason: 'already-used' };
+      if (msg.includes('ALREADY_USED')) {
+        // Still record it as checked-in locally.
+        const code = ticketCode.trim().toUpperCase();
+        const updated = new Set(BookingService.checkedInCodes);
+        updated.add(code);
+        BookingService.checkedInCodes = updated;
+        try {
+          localStorage.setItem('vibetix:checkedInCodes', JSON.stringify([...updated]));
+        } catch {
+          /* ignore */
+        }
+        try {
+          (window as any).__checkedInCodes = [...updated];
+          if ((window as any).__vibetix) {
+            (window as any).__vibetix.checkedInCodes = [...updated];
+          }
+        } catch {
+          /* ignore */
+        }
+        return { ok: false, reason: 'already-used' };
+      }
       if (msg.includes('NOT_PAID')) return { ok: false, reason: 'not-paid' };
       return { ok: false, reason: msg };
     }
     const booking = this.bookings.find(
       (b) => b.ticketCode === ticketCode.trim().toUpperCase()
     );
-    if (booking) {
-      this.checkedInIds.add(booking.id);
-      this.zone.run(() => {
-        const idx = this.bookings.findIndex((b) => b.id === booking.id);
-        if (idx >= 0) {
-          this.bookings[idx] = { ...this.bookings[idx], status: 'checked-in' };
-        }
-        this.changes$.next();
-      });
+    const code = ticketCode.trim().toUpperCase();
+    const updatedCodes = new Set(BookingService.checkedInCodes);
+    updatedCodes.add(code);
+    BookingService.checkedInCodes = updatedCodes;
+    // Global fallback (survives any instance/cache weirdness).
+    try {
+      (window as any).__checkedInCodes = [...BookingService.checkedInCodes];
+      (window as any).__vibetix = {
+        checkedInCodes: [...BookingService.checkedInCodes],
+        checkedInIds: [...BookingService.checkedInIds],
+        bookings: this.bookings.length,
+        lastHydrateError: this.lastHydrateError,
+        lastHydrateCount: this.lastHydrateCount,
+      };
+    } catch {
+      /* ignore */
     }
+    try {
+      localStorage.setItem(
+        'vibetix:checkedInCodes',
+        JSON.stringify([...BookingService.checkedInCodes])
+      );
+    } catch {
+      /* ignore */
+    }
+    if (booking) {
+      const updatedIds = new Set(BookingService.checkedInIds);
+      updatedIds.add(booking.id);
+      BookingService.checkedInIds = updatedIds;
+      try {
+        localStorage.setItem(
+          'vibetix:checkedIn',
+          JSON.stringify([...BookingService.checkedInIds])
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+    this.zone.run(() => {
+      this.bookings = this.bookings.map((b) =>
+        b.ticketCode.trim().toUpperCase() === code
+          ? { ...b, status: 'checked-in' }
+          : b
+      );
+      this.changes$.next();
+    });
+    this.checkedInCount += 1;
     void this.hydrate(); // refresh local list/stat
     const payload = data as { ticket_code: string; seats: string[]; tier: string };
     return {
@@ -505,7 +631,12 @@ export class BookingService {
     return {
       bookings: this.bookings.length,
       tickets: this.bookings.reduce((sum, b) => sum + b.quantity, 0),
-      checkedIn: this.bookings.filter((b) => b.status === 'checked-in').length,
+      checkedIn: Math.max(
+     this.bookings.filter((b) => b.status === 'checked-in').length,
+     this.checkedInCount,
+     BookingService.checkedInCodes.size,
+     BookingService.checkedInIds.size
+   ),
       revenue: this.bookings.reduce((sum, b) => sum + b.total, 0),
     };
   }

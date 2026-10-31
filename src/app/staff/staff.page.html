@@ -101,6 +101,7 @@
     <div class="empty" *ngIf="filtered().length === 0">
       <ion-icon name="reader-outline"></ion-icon>
       <p>No bookings match "{{ search }}".</p>
+    
       <p class="fine" *ngIf="bookingService.lastHydrateError">
         Debug: {{ bookingService.lastHydrateError }} ({{ bookingService.lastHydrateCount }})
       </p>
