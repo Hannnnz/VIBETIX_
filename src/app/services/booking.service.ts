@@ -95,6 +95,10 @@ export class BookingService {
     } catch {
       /* realtime optional */
     }
+
+    // Polling fallback so lists stay fresh even if realtime push isn't
+    // enabled in the database (no manual pull-to-refresh required).
+    setInterval(() => void this.hydrate(), 5000);
   }
 
   private get client() {

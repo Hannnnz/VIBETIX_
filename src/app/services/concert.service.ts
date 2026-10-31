@@ -97,6 +97,8 @@ export class ConcertService {
         }
       )
       .subscribe();
+
+    setInterval(() => void this.hydrate(), 5000);
   }
 
   private get client() {
