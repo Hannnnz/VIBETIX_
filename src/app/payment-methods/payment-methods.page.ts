@@ -74,16 +74,19 @@ export class PaymentMethodsPage {
   async save(): Promise<void> {
     const email = this.auth.getSession()?.email;
     if (!email) {
+      this.toast('You are signed out — sign in again to save a method.', 3500);
       return;
     }
+
+    let saved: SavedMethod | null = null;
 
     if (this.kind === 'gcash') {
       const digits = onlyDigits(this.gcashNumber);
       if (digits.length < 10) {
-        this.toast('Enter a valid mobile number (10 digits).');
+        this.toast('Enter a valid mobile number (10 digits).', 3500);
         return;
       }
-      await this.paymentService.add(email, {
+      saved = await this.paymentService.add(email, {
         kind: 'gcash',
         label: 'GCash',
         detail: maskPhone(digits),
@@ -92,19 +95,25 @@ export class PaymentMethodsPage {
     } else {
       const digits = onlyDigits(this.cardNumber);
       if (!passesLuhn(digits)) {
-        this.toast('Card number failed validation.');
+        this.toast('Card number failed validation.', 3500);
         return;
       }
       if (!this.cardName.trim()) {
-        this.toast('Cardholder name is required.');
+        this.toast('Cardholder name is required.', 3500);
         return;
       }
-      await this.paymentService.add(email, {
+      saved = await this.paymentService.add(email, {
         kind: 'card',
         label: `${this.brand(digits)} Debit`,
         detail: maskCardTail(digits),
         meta: `${this.cardName.trim().toUpperCase()}`,
       });
+    }
+
+    // Never claim success when the database rejected the row.
+    if (!saved) {
+      this.toast(this.explainSaveFailure(), 5000);
+      return;
     }
 
     this.adding = false;
@@ -113,6 +122,18 @@ export class PaymentMethodsPage {
     this.cardName = '';
     this.toast('Payment method saved (masked, never fully stored).');
     this.refresh();
+  }
+
+  /** Turns a raw Postgres/PostgREST error into something actionable. */
+  private explainSaveFailure(): string {
+    const raw = this.paymentService.lastError;
+    if (/row-level security|permission denied|42501/i.test(raw)) {
+      return 'Saving is blocked by the database policy — run supabase/fix-checkout.sql in the Supabase SQL Editor, then try again.';
+    }
+    if (/sign in|signed out|jwt|401/i.test(raw)) {
+      return 'Your session expired — sign in again, then retry.';
+    }
+    return raw || 'Could not save this method. Check your connection and try again.';
   }
 
   private brand(digits: string): string {
@@ -148,10 +169,10 @@ export class PaymentMethodsPage {
     await alert.present();
   }
 
-  private async toast(message: string): Promise<void> {
+  private async toast(message: string, duration = 2000): Promise<void> {
     const toast = await this.toastCtrl.create({
       message,
-      duration: 2000,
+      duration,
       position: 'top',
       color: 'dark',
     });

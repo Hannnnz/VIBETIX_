@@ -5,6 +5,8 @@
 --  WHY: the app calls the `place_booking` / `check_in_ticket` RPCs, but
 --  they were never created in this project. Every checkout therefore
 --  failed and the UI showed "Seat conflict or payment issue".
+--  The same file also fixes the payment_methods RLS policies (the
+--  "Add payment method" screen used to fail with 42501).
 --
 --  This script is idempotent — safe to run again at any time.
 -- ══════════════════════════════════════════════════════════════════
@@ -20,6 +22,36 @@ create policy "seats_read_all"
 drop policy if exists tiers_read_all on public.ticket_tiers;
 create policy "tiers_read_all"
   on public.ticket_tiers for select to authenticated using (true);
+
+-- ── Saved payment methods: owner-only CRUD ────────────────────────
+--  The live table had SELECT allowed but no usable INSERT policy, so
+--  "Add payment method" failed with 42501 (row-level security).
+alter table public.payment_methods enable row level security;
+
+grant select, insert, update, delete on public.payment_methods to authenticated;
+
+drop policy if exists methods_manage_own on public.payment_methods;
+drop policy if exists methods_select_own on public.payment_methods;
+drop policy if exists methods_insert_own on public.payment_methods;
+drop policy if exists methods_update_own on public.payment_methods;
+drop policy if exists methods_delete_own on public.payment_methods;
+
+create policy "methods_select_own"
+  on public.payment_methods for select to authenticated
+  using (customer_id = auth.uid());
+
+create policy "methods_insert_own"
+  on public.payment_methods for insert to authenticated
+  with check (customer_id = auth.uid());
+
+create policy "methods_update_own"
+  on public.payment_methods for update to authenticated
+  using (customer_id = auth.uid())
+  with check (customer_id = auth.uid());
+
+create policy "methods_delete_own"
+  on public.payment_methods for delete to authenticated
+  using (customer_id = auth.uid());
 
 -- ── Drop old variants (arg names/return types may have drifted) ────
 drop function if exists public.place_booking(uuid, uuid, text, text[], text);
@@ -193,9 +225,13 @@ grant execute on function public.check_in_ticket(text) to authenticated;
 -- ── Make PostgREST see the new functions immediately ──────────────
 notify pgrst, 'reload schema';
 
--- Confirm they now exist (two rows expected):
-select proname, pg_get_function_identity_arguments(oid) as args
+-- Confirm everything now exists (4 policies + 2 functions expected):
+select 'policy' as kind, policyname as name, cmd as detail
+from pg_policies
+where schemaname = 'public' and tablename = 'payment_methods'
+union all
+select 'function', proname, pg_get_function_identity_arguments(oid)
 from pg_proc
 where pronamespace = 'public'::regnamespace
   and proname in ('place_booking', 'check_in_ticket')
-order by proname;
+order by 1, 2;

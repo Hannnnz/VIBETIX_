@@ -77,6 +77,9 @@ export class PaymentService {
   /** cache per email for the sync getters pages already use */
   private store: Record<string, SavedMethod[]> = {};
 
+  /** Last failure message (empty when the previous call succeeded). */
+  lastError = '';
+
   constructor(
     private sb: SupabaseService,
     private zone: NgZone
@@ -97,12 +100,14 @@ export class PaymentService {
   /** Pulls the signed-in user's saved methods from the database. */
   async hydrate(email: string): Promise<void> {
     const list = this.ensure(email);
+    this.lastError = '';
     try {
       const { data, error } = await this.client
         .from('payment_methods')
         .select('id, kind, label, detail, meta')
         .order('created_at', { ascending: true });
       if (error || !data) {
+        this.lastError = error?.message ?? 'Could not load saved payment methods.';
         return;
       }
       this.zone.run(() => {
@@ -131,9 +136,11 @@ export class PaymentService {
     email: string,
     method: Omit<SavedMethod, 'id'>
   ): Promise<SavedMethod | null> {
+    this.lastError = '';
     const me = await this.sb.client.auth.getUser();
     const userId = me.data?.user?.id;
     if (!userId) {
+      this.lastError = 'You are signed out — sign in again to save a method.';
       return null;
     }
     const { data, error } = await this.client
@@ -148,6 +155,7 @@ export class PaymentService {
       .select()
       .single();
     if (error || !data) {
+      this.lastError = error?.message ?? 'Could not save this payment method.';
       console.error('method add failed', error);
       return null;
     }
@@ -166,11 +174,13 @@ export class PaymentService {
   }
 
   async remove(email: string, id: string): Promise<void> {
+    this.lastError = '';
     const { error } = await this.client
       .from('payment_methods')
       .delete()
       .eq('id', id);
     if (error) {
+      this.lastError = error.message;
       console.error('method remove failed', error);
       return;
     }
