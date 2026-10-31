@@ -44,15 +44,30 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon --parallel --offline || ./gradlew assembleDebug --stacktrace --no-daemon --parallel
+          ./gradlew assembleRelease --stacktrace --no-daemon --parallel --offline || ./gradlew assembleRelease --stacktrace --no-daemon --parallel
+
+      - name: Sign release APK
+        run: |
+          cd android/app/build/outputs/apk/release
+          KS=/tmp/vibetix.jks
+          keytool -genkeypair -v -keystore "$KS" -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias vibetix -storepass vibetix123 -keypass vibetix123 \
+            -dname "CN=VIBETIX, OU=Mobile, O=VIBETIX, L=Manila, S=Metro Manila, C=PH" >/dev/null 2>&1
+          APK=$(ls app-release-unsigned.apk 2>/dev/null || ls *.apk | head -n1)
+          APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -n1)
+          "$APKSIGNER" sign --ks "$KS" --ks-key-alias vibetix \
+            --ks-pass pass:vibetix123 --key-pass pass:vibetix123 \
+            --out /tmp/vibetix-release.apk "$APK"
+          cp /tmp/vibetix-release.apk ./vibetix-release.apk
+          ls -la /tmp/vibetix-release.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: vibetix-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: vibetix-release-apk
+          path: android/app/build/outputs/apk/release/vibetix-release.apk
           if-no-files-found: error
