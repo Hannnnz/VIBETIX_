@@ -41,8 +41,39 @@ jobs:
             npx cap add android
           fi
 
+      - name: Add camera permission to AndroidManifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
+            python3 - "$MANIFEST" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p).read()
+perm = '    <uses-permission android:name="android.permission.CAMERA" />\\n'
+if '<application' in s:
+    s = s.replace('<application', perm + '<application', 1)
+open(p, 'w').write(s)
+PY
+          fi
+          grep -n 'CAMERA' "$MANIFEST"
+
       - name: Sync Capacitor
         run: npx cap sync android
+
+      - name: Add camera permission to AndroidManifest
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
+            python3 - "$MANIFEST" <<'PY'
+import re,sys
+p=sys.argv[1]
+s=open(p).read()
+perm='    <uses-permission android:name="android.permission.CAMERA" />\\n'
+s=s.replace('<application', perm+'<application',1)
+open(p,'w').write(s)
+PY
+          fi
+          grep -n CAMERA "$MANIFEST"
 
       - name: Build release APK
         run: |
@@ -62,12 +93,12 @@ jobs:
           "$APKSIGNER" sign --ks "$KS" --ks-key-alias vibetix \
             --ks-pass pass:vibetix123 --key-pass pass:vibetix123 \
             --out /tmp/vibetix-release.apk "$APK"
-          cp /tmp/vibetix-release.apk ./vibetix-release.apk
-          ls -la /tmp/vibetix-release.apk
+          cp /tmp/vibetix-release.apk ./VIBETIX-v1.apk
+          ls -la ./VIBETIX-v1.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: vibetix-release-apk
-          path: android/app/build/outputs/apk/release/vibetix-release.apk
+          name: VIBETIX-v1-apk
+          path: android/app/build/outputs/apk/release/VIBETIX-v1.apk
           if-no-files-found: error
