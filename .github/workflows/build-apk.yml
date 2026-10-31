@@ -41,39 +41,14 @@ jobs:
             npx cap add android
           fi
 
-      - name: Add camera permission to AndroidManifest
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
-            python3 - "$MANIFEST" <<'PY'
-import re, sys
-p = sys.argv[1]
-s = open(p).read()
-perm = '    <uses-permission android:name="android.permission.CAMERA" />\\n'
-if '<application' in s:
-    s = s.replace('<application', perm + '<application', 1)
-open(p, 'w').write(s)
-PY
-          fi
-          grep -n 'CAMERA' "$MANIFEST"
-
       - name: Sync Capacitor
         run: npx cap sync android
 
       - name: Add camera permission to AndroidManifest
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
-            python3 - "$MANIFEST" <<'PY'
-import re,sys
-p=sys.argv[1]
-s=open(p).read()
-perm='    <uses-permission android:name="android.permission.CAMERA" />\\n'
-s=s.replace('<application', perm+'<application',1)
-open(p,'w').write(s)
-PY
-          fi
-          grep -n CAMERA "$MANIFEST"
+          python3 -c "import re,sys; p='$MANIFEST'; s=open(p).read(); perm='    <uses-permission android:name=\"android.permission.CAMERA\" />\\n'; s=s.replace('<application', perm+'<application', 1) if 'android.permission.CAMERA' not in s else s; open(p,'w').write(s)"
+          grep -n 'CAMERA' "$MANIFEST"
 
       - name: Build release APK
         run: |
