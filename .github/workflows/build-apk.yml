@@ -47,7 +47,7 @@ jobs:
       - name: Add camera permission to AndroidManifest
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          python3 -c "import re,sys; p='$MANIFEST'; s=open(p).read(); perm='    <uses-permission android:name=\"android.permission.CAMERA\" />\\n'; s=s.replace('<application', perm+'<application', 1) if 'android.permission.CAMERA' not in s else s; open(p,'w').write(s)"
+          python3 -c "import re,sys; p='$MANIFEST'; s=open(p).read(); perm='    <uses-permission android:name=\"android.permission.CAMERA\" />\\n    <uses-feature android:name=\"android.hardware.camera\" android:required=\"false\" />\\n'; s=s.replace('<application', perm+'<application', 1) if 'android.permission.CAMERA' not in s else s; open(p,'w').write(s)"
           grep -n 'CAMERA' "$MANIFEST"
 
       - name: Build release APK

@@ -1,7 +1,5 @@
 import { Component, ElementRef, NgZone, ViewChild } from '@angular/core';
 import { ToastController } from '@ionic/angular/lazy';
-import { Capacitor } from '@capacitor/core';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import jsQR from 'jsqr';
 
 import { Booking, BookingService } from '../../services/booking.service';
@@ -86,13 +84,6 @@ export class ScanPage {
   /** Opens the device camera and scans QR codes using BarcodeDetector when available. */
   async startCamera(): Promise<void> {
     this.cameraError = '';
-    // Native (Android/iOS): use the Capacitor Camera plugin, which triggers
-    // the proper permission prompt and returns a photo we can decode.
-    if (Capacitor.isNativePlatform()) {
-      await this.captureNativePhoto();
-      return;
-    }
-    // Web: use the browser camera stream + jsQR.
     if (!navigator.mediaDevices?.getUserMedia) {
       this.cameraError = 'Camera access is not supported in this browser.';
       return;
@@ -113,52 +104,6 @@ export class ScanPage {
     } catch (e) {
       this.cameraError = (e as Error)?.message || 'Could not open the camera.';
       this.cameraActive = false;
-    }
-  }
-
-  /** Captures a single photo via the native camera and decodes its QR. */
-  private async captureNativePhoto(): Promise<void> {
-    try {
-      const photo = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Camera,
-      });
-      if (!photo.dataUrl) {
-        this.cameraError = 'No photo captured.';
-        return;
-      }
-      const img = new Image();
-      img.src = photo.dataUrl;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Image load failed'));
-      });
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        this.cameraError = 'Canvas not supported.';
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert',
-      });
-      if (code && code.data) {
-        this.zone.run(() => this.scanCode(code.data));
-      } else {
-        this.zone.run(() => {
-          this.cameraError = 'No QR code found in the photo. Try again.';
-        });
-      }
-    } catch (e) {
-      this.zone.run(() => {
-        this.cameraError = (e as Error)?.message || 'Camera permission denied.';
-      });
     }
   }
 
