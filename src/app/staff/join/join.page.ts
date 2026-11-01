@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
@@ -20,12 +20,13 @@ export class JoinPage {
   constructor(
     public auth: AuthService,
     private router: Router,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ionViewWillEnter(): void {
     this.code = '';
-    void this.auth.refreshCompanyCode();
+    void this.auth.refreshCompanyCode().then(() => this.cdr.detectChanges());
   }
 
   get joined(): boolean {
@@ -43,6 +44,7 @@ export class JoinPage {
     this.joining = true;
     const ok = await this.auth.joinCompany(this.code);
     this.joining = false;
+    this.cdr.detectChanges();
 
     if (ok) {
       this.toast('🎉 Company joined — welcome to the team!', 'dark');

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
@@ -34,12 +34,16 @@ export class ConcertFormPage {
     private concertService: ConcertService,
     private route: ActivatedRoute,
     private router: Router,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ionViewWillEnter(): void {
     // make sure the catalog is fresh before looking up the event
-    void this.concertService.hydrate().then(() => this.loadFromQuery());
+    void this.concertService.hydrate().then(() => {
+      this.loadFromQuery();
+      this.cdr.detectChanges();
+    });
     this.loadFromQuery();
   }
 

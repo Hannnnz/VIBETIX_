@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular/lazy';
+import { Subscription } from 'rxjs';
 
 import { Concert, ConcertService } from '../../services/concert.service';
 import { runRefresh } from '../../utils/refresher';
@@ -12,11 +13,14 @@ import { runRefresh } from '../../utils/refresher';
   standalone: false,
 })
 export class AdminEventsPage {
+  private concertSub?: Subscription;
+
   constructor(
     private concertService: ConcertService,
     private router: Router,
     private toastCtrl: ToastController,
-    private alertCtrl: AlertController
+    private alertCtrl: AlertController,
+    private cdr: ChangeDetectorRef
   ) {}
 
   concerts(): Concert[] {
@@ -32,12 +36,23 @@ export class AdminEventsPage {
   }
 
   ionViewWillEnter(): void {
-    void this.concertService.hydrate();
+    this.concertSub?.unsubscribe();
+    this.concertSub = this.concertService.changes$.subscribe(() => {
+      this.cdr.detectChanges();
+    });
+    void this.concertService.hydrate().then(() => this.cdr.detectChanges());
+  }
+
+  ionViewWillLeave(): void {
+    this.concertSub?.unsubscribe();
   }
 
   /** Pull-down-to-refresh refetches the event catalog. */
   async doRefresh(event: Event): Promise<void> {
-    await runRefresh(event, () => this.concertService.hydrate());
+    await runRefresh(event, async () => {
+      await this.concertService.hydrate();
+      this.cdr.detectChanges();
+    });
   }
 
   edit(concert: Concert): void {

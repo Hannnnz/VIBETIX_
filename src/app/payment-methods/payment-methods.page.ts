@@ -46,25 +46,30 @@ export class PaymentMethodsPage {
     private auth: AuthService,
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ionViewWillEnter(): void {
-    this.refresh();
+    void this.refresh();
   }
 
   private async refresh(): Promise<void> {
-    const email = this.auth.getSession()?.email ?? '';
     await this.auth.ensureSession().catch(() => undefined);
+    const email = this.auth.getSession()?.email ?? '';
     await this.paymentService.hydrate(email);
     this.zone.run(() => {
       this.methods = this.paymentService.getMethods(email);
+      this.cdr.detectChanges();
     });
   }
 
   /** Pull-down-to-refresh refetches saved methods from the DB. */
   async doRefresh(event: Event): Promise<void> {
-    await runRefresh(event, () => this.refresh());
+    await runRefresh(event, async () => {
+      await this.refresh();
+      this.cdr.detectChanges();
+    });
   }
 
   toggleAdd(): void {
@@ -121,6 +126,7 @@ export class PaymentMethodsPage {
     this.gcashNumber = '';
     this.cardNumber = '';
     this.cardName = '';
+    this.cdr.detectChanges();
     await this.refresh();
     this.toast('Payment method saved successfully.', 2500, 'success');
   }

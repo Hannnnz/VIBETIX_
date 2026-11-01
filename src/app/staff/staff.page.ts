@@ -31,6 +31,10 @@ export class StaffPage implements OnInit {
   }
 
   async ionViewWillEnter(): Promise<void> {
+    // Paint the cached door list immediately (login/splash warmed it).
+    this.session = this.auth.getSession();
+    this.bookings = this.bookingService.getAll();
+
     await this.auth.ensureSession().catch(() => undefined);
     this.zone.run(() => {
       this.session = this.auth.getSession();
@@ -39,6 +43,7 @@ export class StaffPage implements OnInit {
     this.bookingSub = this.bookingService.changes$.subscribe(() => {
       this.zone.run(() => {
         this.bookings = this.bookingService.getAll();
+        this.cdr.detectChanges();
       });
     });
     // LIVE bookings + concerts straight from Supabase (staff sees the whole door list)
@@ -52,6 +57,7 @@ export class StaffPage implements OnInit {
     }
     this.zone.run(() => {
       this.bookings = this.bookingService.getAll();
+      this.cdr.detectChanges();
     });
   }
 
@@ -69,6 +75,7 @@ export class StaffPage implements OnInit {
       this.zone.run(() => {
         this.session = this.auth.getSession();
         this.bookings = this.bookingService.getAll();
+        this.cdr.detectChanges();
       });
     });
   }
@@ -116,10 +123,8 @@ export class StaffPage implements OnInit {
     }
     // REAL gate check — the check_in_ticket Postgres function (no double entry)
     const outcome = await this.bookingService.gateCheckIn(booking.ticketCode);
-    if (outcome.ok) {
-      this.bookings = this.bookingService.getAll();
-      this.cdr.detectChanges();
-    }
+    this.bookings = this.bookingService.getAll();
+    this.cdr.detectChanges();
     const toast = await this.toastCtrl.create({
       message: outcome.ok
         ? outcome.message

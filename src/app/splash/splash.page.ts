@@ -2,6 +2,7 @@ import { Component, NgZone, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../services/auth.service';
+import { SessionDataService } from '../services/session-data.service';
 
 /** Give the brand animation time to finish before leaving. */
 const MIN_SHOW_MS = 2000;
@@ -23,7 +24,8 @@ export class SplashPage implements OnDestroy {
   constructor(
     private auth: AuthService,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone,
+    private data: SessionDataService
   ) {}
 
   ionViewWillEnter(): void {
@@ -32,7 +34,12 @@ export class SplashPage implements OnDestroy {
     // The Supabase client is already warm (APP_INITIALIZER connects it as
     // soon as the app boots). Restore the persisted session in parallel
     // with the animation, but cap the wait so a slow network never blocks.
-    const restored = this.auth.ensureSession().catch(() => undefined);
+    // Once restored, preload the signed-in data so the first screen paints
+    // with content instead of an empty list.
+    const restored = this.auth
+      .ensureSession()
+      .then(() => this.data.warm(this.auth.getSession()))
+      .catch(() => undefined);
     void Promise.race([restored, this.sleep(MAX_WAIT_MS)]).then(() => {
       const remaining = Math.max(0, MIN_SHOW_MS - (Date.now() - startedAt));
       this.zone.runOutsideAngular(() => {

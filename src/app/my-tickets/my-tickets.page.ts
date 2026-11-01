@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Booking, BookingService } from '../services/booking.service';
@@ -27,12 +27,18 @@ export class MyTicketsPage {
     private concertService: ConcertService,
     private auth: AuthService,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
   async ionViewWillEnter(): Promise<void> {
+    // Paint whatever the login/splash warm-up already cached, then refresh.
+    this.session = this.auth.getSession();
+    this.refreshBookingsList(this.session?.email ?? '');
+
     await this.auth.ensureSession().catch(() => undefined);
     this.zone.run(() => {
       this.session = this.auth.getSession();
+      this.cdr.detectChanges();
     });
     const email = this.session?.email ?? '';
 
@@ -40,10 +46,16 @@ export class MyTicketsPage {
     this.bookingChangesSub?.unsubscribe();
     this.concertChangesSub?.unsubscribe();
     this.bookingChangesSub = this.bookingService.changes$.subscribe(() => {
-      this.zone.run(() => this.refreshBookingsList(email));
+      this.zone.run(() => {
+        this.refreshBookingsList(email);
+        this.cdr.detectChanges();
+      });
     });
     this.concertChangesSub = this.concertService.changes$.subscribe(() => {
-      this.zone.run(() => (this.now = Date.now()));
+      this.zone.run(() => {
+        this.now = Date.now();
+        this.cdr.detectChanges();
+      });
     });
 
     // LIVE bookings from Supabase, then render
@@ -60,12 +72,16 @@ export class MyTicketsPage {
     this.zone.run(() => {
       this.refreshBookingsList(email);
       this.now = Date.now();
+      this.cdr.detectChanges();
     });
     this.now = Date.now();
     // Live DD:HH:MM:SS ticking for upcoming shows
     this.zone.runOutsideAngular(() => {
       this.ticker = setInterval(() => {
-        this.zone.run(() => (this.now = Date.now()));
+        this.zone.run(() => {
+          this.now = Date.now();
+          this.cdr.detectChanges();
+        });
       }, 1000);
     });
   }
@@ -98,7 +114,10 @@ export class MyTicketsPage {
     await runRefresh(event, async () => {
       await this.auth.ensureSession().catch(() => undefined);
       const email = this.auth.getSession()?.email ?? this.session?.email ?? '';
-      this.zone.run(() => (this.session = this.auth.getSession()));
+      this.zone.run(() => {
+        this.session = this.auth.getSession();
+        this.cdr.detectChanges();
+      });
       await Promise.all([
         this.bookingService.hydrate(),
         this.concertService.hydrate(),
@@ -106,6 +125,7 @@ export class MyTicketsPage {
       this.zone.run(() => {
         this.refreshBookingsList(email);
         this.now = Date.now();
+        this.cdr.detectChanges();
       });
     });
   }

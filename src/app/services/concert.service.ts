@@ -75,6 +75,9 @@ export class ConcertService {
 
   private realtimeTimer?: ReturnType<typeof setTimeout>;
 
+  /** Coalesces concurrent hydrate() calls into a single request. */
+  private hydratePromise: Promise<void> | null = null;
+
   constructor(
     private sb: SupabaseService,
     private zone: NgZone
@@ -136,7 +139,19 @@ export class ConcertService {
   }
 
   /** Pulls concerts + tiers from the real database. */
-  async hydrate(): Promise<void> {
+  hydrate(): Promise<void> {
+    // Share one request across pages, realtime pushes and polling so an
+    // older response cannot overwrite a newer catalog.
+    if (this.hydratePromise) {
+      return this.hydratePromise;
+    }
+    this.hydratePromise = this.doHydrate().finally(() => {
+      this.hydratePromise = null;
+    });
+    return this.hydratePromise;
+  }
+
+  private async doHydrate(): Promise<void> {
     try {
       const { data, error } = await this.client
         .from('concerts')

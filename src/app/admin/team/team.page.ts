@@ -1,4 +1,4 @@
-import { Component, NgZone, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { ToastController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
@@ -28,7 +28,8 @@ export class TeamPage implements OnInit {
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -42,12 +43,16 @@ export class TeamPage implements OnInit {
       /* keep current */
     }
     await this.refresh();
+    this.cdr.detectChanges();
   }
 
   private async refresh(): Promise<void> {
     try {
       const staff = await this.auth.staffAccounts();
-      this.zone.run(() => (this.staff = staff));
+      this.zone.run(() => {
+        this.staff = staff;
+        this.cdr.detectChanges();
+      });
     } catch {
       /* keep current */
     }
@@ -60,6 +65,7 @@ export class TeamPage implements OnInit {
         this.auth.refreshCompanyCode().then(() => undefined),
         this.refresh().catch(() => undefined),
       ]);
+      this.cdr.detectChanges();
     });
   }
 
@@ -113,6 +119,7 @@ export class TeamPage implements OnInit {
     this.busy = true;
     const created = await this.auth.addStaff(this.addName, this.addEmail);
     this.busy = false;
+    this.cdr.detectChanges();
 
     if (!created) {
       this.toast(

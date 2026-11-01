@@ -1,4 +1,4 @@
-import { Component, ElementRef, NgZone, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, NgZone, ViewChild } from '@angular/core';
 import { ToastController } from '@ionic/angular/lazy';
 import jsQR from 'jsqr';
 
@@ -34,7 +34,8 @@ export class ScanPage {
     private bookingService: BookingService,
     private concertService: ConcertService,
     private toastCtrl: ToastController,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ionViewWillEnter(): void {
@@ -79,6 +80,7 @@ export class ScanPage {
       booking.status === 'active'
         ? { state: 'success', booking }
         : { state: 'already-used', booking };
+    this.cdr.detectChanges();
   }
 
   /** Opens the device camera and scans QR codes using BarcodeDetector when available. */
@@ -86,6 +88,7 @@ export class ScanPage {
     this.cameraError = '';
     if (!navigator.mediaDevices?.getUserMedia) {
       this.cameraError = 'Camera access is not supported in this browser.';
+      this.cdr.detectChanges();
       return;
     }
     try {
@@ -93,6 +96,7 @@ export class ScanPage {
         video: { facingMode: 'environment' },
       });
       this.cameraActive = true;
+      this.cdr.detectChanges();
       setTimeout(() => {
         const video = this.scanVideo?.nativeElement;
         if (video) {
@@ -104,6 +108,7 @@ export class ScanPage {
     } catch (e) {
       this.cameraError = (e as Error)?.message || 'Could not open the camera.';
       this.cameraActive = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -189,6 +194,7 @@ export class ScanPage {
     } else {
       this.toast(outcome.reason === 'invalid' ? 'Ticket not found.' : outcome.reason);
     }
+    this.cdr.detectChanges();
     void this.bookingService.hydrate();
   }
 

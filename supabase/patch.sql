@@ -18,6 +18,21 @@ as $$
   );
 $$;
 
+-- ── Helper: staff or admin? ───────────────────────────────────────
+create or replace function public.is_staff_or_admin()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('staff', 'admin')
+  );
+$$;
+
+-- ── Gate check-in source of truth (see supabase/fix-checkins.sql) ─
+alter table public.bookings
+  add column if not exists checked_in_at timestamptz;
+
 -- ── Helper: keep updated_at fresh ─────────────────────────────────
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql
@@ -211,7 +226,7 @@ create policy "payments_select_related"
 drop policy if exists checkins_select_staff_or_admin on public.check_ins;
 create policy "checkins_select_staff_or_admin"
   on public.check_ins for select to authenticated using (
-    public.is_admin() or scanned_by = auth.uid()
+    public.is_staff_or_admin()
   );
 
 drop policy if exists checkins_insert_staff on public.check_ins;
@@ -381,6 +396,10 @@ begin
   exception when unique_violation then
     raise exception 'ALREADY_USED' using errcode = 'P0001';
   end;
+
+  update public.bookings
+     set checked_in_at = coalesce(checked_in_at, now())
+   where id = v_booking.id;
 
   v_seats := '{}';
   for v_seat in

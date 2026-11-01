@@ -1,4 +1,4 @@
-import { Component, NgZone, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { Concert, ConcertService } from '../services/concert.service';
@@ -41,11 +41,15 @@ export class CalendarPage implements OnInit {
     private bookingService: BookingService,
     private auth: AuthService,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {
     // 🔴 Realtime: events change → rebuild the month grid instantly.
     this.concertService.changes$.subscribe(() =>
-      this.zone.run(() => this.rebuild())
+      this.zone.run(() => {
+        this.rebuild();
+        this.cdr.detectChanges();
+      })
     );
   }
 
@@ -68,10 +72,14 @@ export class CalendarPage implements OnInit {
     this.zone.run(() => {
       this.now = Date.now();
       this.rebuild();
+      this.cdr.detectChanges();
     });
     this.zone.runOutsideAngular(() => {
       this.ticker = setInterval(() => {
-        this.zone.run(() => (this.now = Date.now()));
+        this.zone.run(() => {
+          this.now = Date.now();
+          this.cdr.detectChanges();
+        });
       }, 1000);
     });
   }
@@ -84,7 +92,10 @@ export class CalendarPage implements OnInit {
         this.concertService.hydrate(),
         this.bookingService.hydrate(),
       ]).catch(() => undefined);
-      this.zone.run(() => this.rebuild());
+      this.zone.run(() => {
+        this.rebuild();
+        this.cdr.detectChanges();
+      });
     });
   }
 

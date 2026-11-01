@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
@@ -23,31 +23,39 @@ export class ConcertsPage {
     private auth: AuthService,
     private router: Router,
     private toastCtrl: ToastController,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {
     // 🔴 Realtime: a new event lands in the DB → feed repaints itself.
     this.concerts.changes$.subscribe(() =>
-      this.zone.run(() => (this.memo = { key: '', list: [] }))
+      this.zone.run(() => {
+        this.memo = { key: '', list: [] };
+        this.cdr.detectChanges();
+      })
     );
   }
 
   async ionViewWillEnter(): Promise<void> {
     await this.auth.ensureSession().catch(() => undefined);
     // LIVE data from Supabase + personalized loves, then re-rank the feed.
-    void this.concerts.hydrate().then(() =>
-      this.zone.run(() =>
-        this.memo = { key: '', list: [] }
-      )
-    );
-    void this.recommend.hydrate();
-    this.memo = { key: '', list: [] };
+    await Promise.all([
+      this.concerts.hydrate(),
+      this.recommend.hydrate(),
+    ]).catch(() => undefined);
+    this.zone.run(() => {
+      this.memo = { key: '', list: [] };
+      this.cdr.detectChanges();
+    });
   }
 
   /** Pull-down-to-refresh refetches the feed + recommendations. */
   async doRefresh(event: Event): Promise<void> {
     await runRefresh(event, async () => {
       await Promise.all([this.concerts.hydrate(), this.recommend.hydrate()]);
-      this.zone.run(() => (this.memo = { key: '', list: [] }));
+      this.zone.run(() => {
+        this.memo = { key: '', list: [] };
+        this.cdr.detectChanges();
+      });
     });
   }
 

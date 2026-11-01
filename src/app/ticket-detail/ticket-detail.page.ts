@@ -115,7 +115,10 @@ export class TicketDetailPage implements OnInit {
     });
     this.zone.runOutsideAngular(() => {
       this.ticker = setInterval(() => {
-        this.zone.run(() => (this.now = Date.now()));
+        this.zone.run(() => {
+          this.now = Date.now();
+          this.cdr.detectChanges();
+        });
       }, 1000);
     });
   }

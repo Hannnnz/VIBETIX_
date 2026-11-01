@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
+import { Subscription } from 'rxjs';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
@@ -13,21 +14,35 @@ import { runRefresh } from '../../utils/refresher';
 })
 export class AdminBookingsPage {
   search = '';
+  private bookingSub?: Subscription;
 
   constructor(
     private bookingService: BookingService,
     private concertService: ConcertService,
-    private auth: AuthService
+    private auth: AuthService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   async ionViewWillEnter(): Promise<void> {
+    this.bookingSub?.unsubscribe();
+    this.bookingSub = this.bookingService.changes$.subscribe(() => {
+      this.cdr.detectChanges();
+    });
     await this.auth.ensureSession().catch(() => undefined);
     await this.bookingService.hydrate().catch(() => undefined);
+    this.cdr.detectChanges();
+  }
+
+  ionViewWillLeave(): void {
+    this.bookingSub?.unsubscribe();
   }
 
   /** Pull-down-to-refresh refetches every customer's bookings. */
   async doRefresh(event: Event): Promise<void> {
-    await runRefresh(event, () => this.bookingService.hydrate());
+    await runRefresh(event, async () => {
+      await this.bookingService.hydrate();
+      this.cdr.detectChanges();
+    });
   }
 
   filtered(): Booking[] {

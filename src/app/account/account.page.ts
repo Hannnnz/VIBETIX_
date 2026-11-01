@@ -1,4 +1,4 @@
-import { Component, NgZone, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { AlertController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 import { AuthService, Session } from '../services/auth.service';
@@ -34,7 +34,8 @@ export class AccountPage implements OnInit {
     private paymentService: PaymentService,
     private router: Router,
     private alertCtrl: AlertController,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -46,6 +47,7 @@ export class AccountPage implements OnInit {
     await this.auth.ensureSession().catch(() => undefined);
     this.zone.run(() => {
       this.session = this.auth.getSession();
+      this.cdr.detectChanges();
     });
     await this.refreshMethods();
 
@@ -53,13 +55,19 @@ export class AccountPage implements OnInit {
     if (this.session?.role === 'admin') {
       try {
         const staff = await this.auth.staffAccounts();
-        this.zone.run(() => (this.staffCount = staff.length));
+        this.zone.run(() => {
+          this.staffCount = staff.length;
+          this.cdr.detectChanges();
+        });
       } catch {
         /* keep previous */
       }
       try {
         const code = await this.auth.refreshCompanyCode();
-        this.zone.run(() => (this.companyCode = code || 'unavailable'));
+        this.zone.run(() => {
+          this.companyCode = code || 'unavailable';
+          this.cdr.detectChanges();
+        });
       } catch {
         /* keep previous */
       }
@@ -71,6 +79,7 @@ export class AccountPage implements OnInit {
         /* keep previous */
       }
     }
+    this.cdr.detectChanges();
   }
 
   private async refreshMethods(): Promise<void> {
@@ -82,6 +91,7 @@ export class AccountPage implements OnInit {
     }
     this.zone.run(() => {
       this.methods = this.paymentService.getMethods(email);
+      this.cdr.detectChanges();
     });
   }
 

@@ -68,6 +68,17 @@ as $$
   );
 $$;
 
+-- Helper: is the caller a staff member or admin? (gate + team screens)
+create or replace function public.is_staff_or_admin()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('staff', 'admin')
+  );
+$$;
+
 -- ──────────────────────────────────────────────────────────────────
 -- 2 · COMPANY (admin's join code + team management)
 -- ──────────────────────────────────────────────────────────────────
@@ -214,7 +225,9 @@ create table public.bookings (
   -- masked payment reference only — NEVER store full card numbers/CVV
   payment_ref     text,
   created_at      timestamptz not null default now(),
-  paid_at         timestamptz
+  paid_at         timestamptz,
+  -- set when staff scan the ticket at the gate (source of truth for "attended")
+  checked_in_at   timestamptz
 );
 
 create index bookings_customer_idx on public.bookings (customer_id);
@@ -355,7 +368,7 @@ alter table public.check_ins enable row level security;
 
 create policy "checkins_select_staff_or_admin"
   on public.check_ins for select to authenticated using (
-    public.is_admin() or scanned_by = auth.uid()
+    public.is_staff_or_admin()
   );
 
 create policy "checkins_insert_staff"
@@ -365,6 +378,47 @@ create policy "checkins_insert_staff"
       and p.role in ('staff', 'admin')
     )
   );
+
+-- Keep bookings.checked_in_at in sync with the gate log.
+create or replace function public.mark_booking_checked_in()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' then
+    update public.bookings
+       set checked_in_at = null
+     where id = old.booking_id
+       and not exists (
+         select 1 from public.check_ins where booking_id = old.booking_id
+       );
+    return old;
+  end if;
+  update public.bookings
+     set checked_in_at = coalesce(checked_in_at, new.scanned_at)
+   where id = new.booking_id;
+  return new;
+end;
+$$;
+
+create trigger check_ins_mark_booking
+  after insert or delete on public.check_ins
+  for each row execute function public.mark_booking_checked_in();
+
+-- Security-definer helper the app calls when RLS hides the door log.
+create or replace function public.get_all_check_ins()
+returns setof public.check_ins
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not public.is_staff_or_admin() then
+    raise exception 'Not allowed.' using errcode = 'P0001';
+  end if;
+  return query select * from public.check_ins;
+end;
+$$;
+
+grant execute on function public.get_all_check_ins() to authenticated;
 
 -- ──────────────────────────────────────────────────────────────────
 -- 8 · RECOMMENDATION ENGINE DATA (loves, views, purchases)

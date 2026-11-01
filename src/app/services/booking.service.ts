@@ -38,6 +38,8 @@ interface BookingRow {
   status: string;
   paid_via: string;
   created_at: string;
+  /** Set by the gate check-in RPC; travels through the booking RPCs. */
+  checked_in_at?: string | null;
   seats?: { seat_code: string }[];
   customer?: { email: string; full_name: string } | null;
 }
@@ -77,6 +79,9 @@ export class BookingService {
 
   private realtimeTimer?: ReturnType<typeof setTimeout>;
 
+  /** Coalesces concurrent hydrate() calls into a single request. */
+  private hydratePromise: Promise<void> | null = null;
+
   /** Emits after the local booking cache changes (refetch / new booking). */
   readonly changes$ = new Subject<void>();
 
@@ -92,6 +97,26 @@ export class BookingService {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'bookings' },
+          () => {
+            if (this.realtimeTimer) {
+              clearTimeout(this.realtimeTimer);
+            }
+            this.realtimeTimer = setTimeout(() => void this.hydrate(), 250);
+          }
+        )
+        .subscribe();
+    } catch {
+      /* realtime optional */
+    }
+
+    // 🔴 Realtime: a gate scan lands in `check_ins` (not `bookings`), so
+    // refresh the door list when one is inserted/removed.
+    try {
+      this.client
+        .channel('vibetix-check-ins')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'check_ins' },
           () => {
             if (this.realtimeTimer) {
               clearTimeout(this.realtimeTimer);
@@ -141,6 +166,19 @@ export class BookingService {
         }
       });
     }
+
+    // Signing out — or switching accounts — must never leave another user's
+    // tickets in the cache.
+    this.auth.changes$.subscribe((session) => {
+      if (!session) {
+        this.clear();
+      } else if (
+        this.currentUserEmail &&
+        session.email.toLowerCase() !== this.currentUserEmail.toLowerCase()
+      ) {
+        this.clear();
+      }
+    });
   }
 
   private get client() {
@@ -167,18 +205,31 @@ export class BookingService {
       paidVia: row.paid_via,
       quantity: row.quantity,
       total: Number(row.total_amount ?? row.unit_price * row.quantity),
-      status: BookingService.checkedInIds.has(row.id) ||
+      status:
+        !!row.checked_in_at ||
+        BookingService.checkedInIds.has(row.id) ||
         BookingService.checkedInCodes.has((row.ticket_code || '').trim().toUpperCase())
-        ? 'checked-in'
-        : row.status === 'paid'
-          ? 'active'
-          : 'checked-in',
+          ? 'checked-in'
+          : 'active',
       createdAt: row.created_at,
     };
   }
 
   /** Loads my bookings (customer), or ALL bookings (staff/admin). */
-  async hydrate(): Promise<void> {
+  hydrate(): Promise<void> {
+    // Multiple pages + the realtime/polling timers can ask for the same
+    // refetch at once. Share one request so a slower, older response can
+    // never overwrite a newer one.
+    if (this.hydratePromise) {
+      return this.hydratePromise;
+    }
+    this.hydratePromise = this.doHydrate().finally(() => {
+      this.hydratePromise = null;
+    });
+    return this.hydratePromise;
+  }
+
+  private async doHydrate(): Promise<void> {
     this.lastHydrateError = '';
     this.lastHydrateCount = 0;
     try {
@@ -310,24 +361,53 @@ export class BookingService {
         }
       }
 
-      // Fetch which bookings have been checked in at the gate.
-      const checkedIn = new Set<string>();
-      try {
-        const { data: checkins, error: ciErr } = await this.client
-          .from('check_ins')
-          .select('booking_id');
-        if (ciErr) {
-          this.lastHydrateError = 'check_ins: ' + ciErr.message;
+      // Which bookings have been checked in at the gate?
+      //
+      // The `checked_in_at` column on bookings is the most reliable source:
+      // it comes back through the security-definer booking RPCs, so it works
+      // even when the client cannot SELECT the check_ins table (RLS).
+      const checkedIn = new Set<string>(BookingService.checkedInIds);
+      const codes = new Set<string>(BookingService.checkedInCodes);
+      for (const r of bookingRows as { id: string; checked_in_at?: string | null }[]) {
+        if (r.checked_in_at) {
+          checkedIn.add(r.id);
         }
-        (checkins ?? []).forEach((c: { booking_id: string }) => {
-          checkedIn.add(c.booking_id);
-        });
-        this.checkedInCount = Math.max(this.checkedInCount, (checkins ?? []).length);
-      } catch (e) {
-        this.lastHydrateError = 'check_ins: ' + (e as Error)?.message;
       }
-      // Merge with any locally recorded check-ins (survives refresh even if
-      // the check_ins RLS query is blocked).
+
+      // Fallback for databases that only track check_ins. The RPC is
+      // security-definer, so staff/admin always see every gate scan.
+      let checkInsLoaded = false;
+      if (isElevated) {
+        try {
+          const { data: checkins, error } = await this.client.rpc('get_all_check_ins');
+          if (!error && Array.isArray(checkins)) {
+            checkInsLoaded = true;
+            (checkins as { booking_id: string }[]).forEach((c) =>
+              checkedIn.add(c.booking_id)
+            );
+          }
+        } catch {
+          /* function may not exist yet — direct query below */
+        }
+      }
+      if (!checkInsLoaded) {
+        try {
+          const { data: checkins, error: ciErr } = await this.client
+            .from('check_ins')
+            .select('booking_id');
+          if (ciErr) {
+            this.lastHydrateError = 'check_ins: ' + ciErr.message;
+          } else {
+            (checkins ?? []).forEach((c: { booking_id: string }) => {
+              checkedIn.add(c.booking_id);
+            });
+          }
+        } catch (e) {
+          this.lastHydrateError = 'check_ins: ' + (e as Error)?.message;
+        }
+      }
+
+      // Merge locally recorded check-ins (survives a blocked/empty query).
       try {
         const raw = localStorage.getItem('vibetix:checkedIn');
         if (raw) {
@@ -336,7 +416,6 @@ export class BookingService {
       } catch {
         /* ignore */
       }
-      const codes = new Set(BookingService.checkedInCodes);
       try {
         const rawCodes = localStorage.getItem('vibetix:checkedInCodes');
         if (rawCodes) {
@@ -374,6 +453,7 @@ export class BookingService {
           status: r.status,
           paid_via: r.paid_via,
           created_at: r.created_at,
+          checked_in_at: r.checked_in_at ?? null,
           seats: seatsByBooking.get(r.id) ?? [],
           customer: prof ? { email: prof.email, full_name: prof.full_name } : null,
         };
@@ -396,8 +476,24 @@ export class BookingService {
   private cacheRows(rows: BookingRow[], email: string, name: string): void {
     this.zone.run(() => {
       this.bookings = rows.map((r) => this.map(r, email, name));
+      this.checkedInCount = this.bookings.filter(
+        (b) => b.status === 'checked-in'
+      ).length;
       this.changes$.next();
     });
+  }
+
+  /** Drops cached data when the signed-in user changes. */
+  clear(): void {
+    this.bookings = [];
+    this.checkedInCount = 0;
+    this.lastHydrateError = '';
+    this.lastHydrateCount = 0;
+    this.currentUserId = '';
+    this.currentUserEmail = '';
+    BookingService.checkedInIds = new Set<string>();
+    BookingService.checkedInCodes = new Set<string>();
+    this.zone.run(() => this.changes$.next());
   }
 
   /**
@@ -545,79 +641,15 @@ export class BookingService {
       const msg = error.message;
       if (msg.includes('NOT_FOUND')) return { ok: false, reason: 'invalid' };
       if (msg.includes('ALREADY_USED')) {
-        // Still record it as checked-in locally.
-        const code = ticketCode.trim().toUpperCase();
-        const updated = new Set(BookingService.checkedInCodes);
-        updated.add(code);
-        BookingService.checkedInCodes = updated;
-        try {
-          localStorage.setItem('vibetix:checkedInCodes', JSON.stringify([...updated]));
-        } catch {
-          /* ignore */
-        }
-        try {
-          (window as any).__checkedInCodes = [...updated];
-          if ((window as any).__vibetix) {
-            (window as any).__vibetix.checkedInCodes = [...updated];
-          }
-        } catch {
-          /* ignore */
-        }
+        // Still reflect it locally so the door list shows "Attended".
+        this.markCheckedInLocally(ticketCode);
+        void this.hydrate();
         return { ok: false, reason: 'already-used' };
       }
       if (msg.includes('NOT_PAID')) return { ok: false, reason: 'not-paid' };
       return { ok: false, reason: msg };
     }
-    const booking = this.bookings.find(
-      (b) => b.ticketCode === ticketCode.trim().toUpperCase()
-    );
-    const code = ticketCode.trim().toUpperCase();
-    const updatedCodes = new Set(BookingService.checkedInCodes);
-    updatedCodes.add(code);
-    BookingService.checkedInCodes = updatedCodes;
-    // Global fallback (survives any instance/cache weirdness).
-    try {
-      (window as any).__checkedInCodes = [...BookingService.checkedInCodes];
-      (window as any).__vibetix = {
-        checkedInCodes: [...BookingService.checkedInCodes],
-        checkedInIds: [...BookingService.checkedInIds],
-        bookings: this.bookings.length,
-        lastHydrateError: this.lastHydrateError,
-        lastHydrateCount: this.lastHydrateCount,
-      };
-    } catch {
-      /* ignore */
-    }
-    try {
-      localStorage.setItem(
-        'vibetix:checkedInCodes',
-        JSON.stringify([...BookingService.checkedInCodes])
-      );
-    } catch {
-      /* ignore */
-    }
-    if (booking) {
-      const updatedIds = new Set(BookingService.checkedInIds);
-      updatedIds.add(booking.id);
-      BookingService.checkedInIds = updatedIds;
-      try {
-        localStorage.setItem(
-          'vibetix:checkedIn',
-          JSON.stringify([...BookingService.checkedInIds])
-        );
-      } catch {
-        /* ignore */
-      }
-    }
-    this.zone.run(() => {
-      this.bookings = this.bookings.map((b) =>
-        b.ticketCode.trim().toUpperCase() === code
-          ? { ...b, status: 'checked-in' }
-          : b
-      );
-      this.changes$.next();
-    });
-    this.checkedInCount += 1;
+    this.markCheckedInLocally(ticketCode);
     void this.hydrate(); // refresh local list/stat
     const payload = data as { ticket_code: string; seats: string[]; tier: string };
     return {
@@ -626,17 +658,72 @@ export class BookingService {
     };
   }
 
+  /**
+   * Marks a ticket checked-in in the local cache + fallbacks. Used both for
+   * a successful gate scan and when the DB says it was already scanned.
+   */
+  private markCheckedInLocally(ticketCode: string): void {
+    const code = ticketCode.trim().toUpperCase();
+    const updatedCodes = new Set(BookingService.checkedInCodes);
+    updatedCodes.add(code);
+    BookingService.checkedInCodes = updatedCodes;
+    try {
+      localStorage.setItem(
+        'vibetix:checkedInCodes',
+        JSON.stringify([...updatedCodes])
+      );
+    } catch {
+      /* ignore */
+    }
+    try {
+      (window as any).__checkedInCodes = [...updatedCodes];
+      (window as any).__vibetix = {
+        checkedInCodes: [...updatedCodes],
+        checkedInIds: [...BookingService.checkedInIds],
+        bookings: this.bookings.length,
+        lastHydrateError: this.lastHydrateError,
+        lastHydrateCount: this.lastHydrateCount,
+      };
+    } catch {
+      /* ignore */
+    }
+
+    const booking = this.bookings.find(
+      (b) => b.ticketCode.trim().toUpperCase() === code
+    );
+    if (booking) {
+      const updatedIds = new Set(BookingService.checkedInIds);
+      updatedIds.add(booking.id);
+      BookingService.checkedInIds = updatedIds;
+      try {
+        localStorage.setItem(
+          'vibetix:checkedIn',
+          JSON.stringify([...updatedIds])
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+
+    this.zone.run(() => {
+      this.bookings = this.bookings.map((b) =>
+        b.ticketCode.trim().toUpperCase() === code
+          ? { ...b, status: 'checked-in' }
+          : b
+      );
+      this.checkedInCount = this.bookings.filter(
+        (b) => b.status === 'checked-in'
+      ).length;
+      this.changes$.next();
+    });
+  }
+
   /** Simple dashboard numbers for Staff/Admin screens. */
   stats(): { bookings: number; tickets: number; checkedIn: number; revenue: number } {
     return {
       bookings: this.bookings.length,
       tickets: this.bookings.reduce((sum, b) => sum + b.quantity, 0),
-      checkedIn: Math.max(
-     this.bookings.filter((b) => b.status === 'checked-in').length,
-     this.checkedInCount,
-     BookingService.checkedInCodes.size,
-     BookingService.checkedInIds.size
-   ),
+      checkedIn: this.bookings.filter((b) => b.status === 'checked-in').length,
       revenue: this.bookings.reduce((sum, b) => sum + b.total, 0),
     };
   }

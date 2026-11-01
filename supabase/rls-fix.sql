@@ -21,6 +21,17 @@ as $$
   );
 $$;
 
+-- 2b · Staff/admin helper (gate + team screens)
+create or replace function public.is_staff_or_admin()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('staff', 'admin')
+  );
+$$;
+
 -- ═══ PROFILES — the one blocking your login ═══
 alter table public.profiles enable row level security;
 
@@ -141,7 +152,7 @@ alter table public.check_ins enable row level security;
 drop policy if exists checkins_select_staff_or_admin on public.check_ins;
 create policy "checkins_select_staff_or_admin"
   on public.check_ins for select to authenticated using (
-    public.is_admin() or scanned_by = auth.uid()
+    public.is_staff_or_admin()
   );
 
 drop policy if exists checkins_insert_staff on public.check_ins;

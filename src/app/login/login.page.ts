@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 
@@ -28,7 +28,8 @@ export class LoginPage {
     private auth: AuthService,
     private router: Router,
     private toastCtrl: ToastController,
-    private data: SessionDataService
+    private data: SessionDataService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ionViewWillEnter(): void {
@@ -77,6 +78,11 @@ export class LoginPage {
       await this.router.navigateByUrl(this.auth.roleHome, { replaceUrl: true });
     } finally {
       this.signingIn = false;
+      try {
+        this.cdr.detectChanges();
+      } catch {
+        /* the login view may already be gone */
+      }
     }
   }
 

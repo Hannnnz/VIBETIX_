@@ -15,6 +15,10 @@
 alter table public.seats         enable row level security;
 alter table public.ticket_tiers  enable row level security;
 
+-- ── Gate check-in source of truth (see supabase/fix-checkins.sql) ─
+alter table public.bookings
+  add column if not exists checked_in_at timestamptz;
+
 drop policy if exists seats_read_all on public.seats;
 create policy "seats_read_all"
   on public.seats for select to authenticated using (true);
@@ -201,6 +205,10 @@ begin
   exception when unique_violation then
     raise exception 'ALREADY_USED' using errcode = 'P0001';
   end;
+
+  update public.bookings
+     set checked_in_at = coalesce(checked_in_at, now())
+   where id = v_booking.id;
 
   select array_agg(seat_code order by seat_code)
     into v_seats

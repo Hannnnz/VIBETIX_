@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
@@ -22,7 +22,8 @@ export class AdminDashboardPage {
     private concertService: ConcertService,
     private bookingService: BookingService,
     private auth: AuthService,
-    private zone: NgZone
+    private zone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   async ionViewWillEnter(): Promise<void> {
@@ -31,15 +32,22 @@ export class AdminDashboardPage {
     this.bookingSub?.unsubscribe?.();
     this.concertSub?.unsubscribe?.();
     this.bookingSub = this.bookingService.changes$.subscribe(() => {
-      this.zone.run(() => (this.session = this.auth.getSession()));
+      this.zone.run(() => {
+        this.session = this.auth.getSession();
+        this.cdr.detectChanges();
+      });
     });
     this.concertSub = this.concertService.changes$.subscribe(() => {
-      this.zone.run(() => (this.session = this.auth.getSession()));
+      this.zone.run(() => {
+        this.session = this.auth.getSession();
+        this.cdr.detectChanges();
+      });
     });
     await Promise.all([
       this.bookingService.hydrate(),
       this.concertService.hydrate(),
     ]).catch(() => undefined);
+    this.cdr.detectChanges();
   }
 
   /** Pull-down-to-refresh refetches events + bookings. */
@@ -50,6 +58,7 @@ export class AdminDashboardPage {
         this.concertService.hydrate(),
       ]);
       this.session = this.auth.getSession();
+      this.cdr.detectChanges();
     });
   }
 
