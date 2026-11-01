@@ -8,6 +8,7 @@ The app is now backed by a real database. Project: `https://vtocnpgguwggpgvvylzn
    - SQL Editor → paste **`supabase/patch.sql`** → Run.
    - SQL Editor → paste **`supabase/fix-checkout.sql`** → Run.
    - SQL Editor → paste **`supabase/fix-checkins.sql`** → Run.
+   - SQL Editor → paste **`supabase/email-logs.sql`** → Run (transactional email log).
    - This is idempotent — safe even if you already ran other SQL.
    - `patch.sql` + `fix-checkout.sql` create `place_booking` /
      `check_in_ticket` (checkout + staff check-in) and the owner-only
@@ -20,6 +21,13 @@ The app is now backed by a real database. Project: `https://vtocnpgguwggpgvvylzn
 2. **Turn OFF email confirmation** (fastest demo path):
    - Authentication → Providers → Email → toggle **"Confirm email"** off → Save.
    - (Leave it on if you want verification emails — the register page handles it.)
+2b. **Deploy the email edge function** (for ticket confirmation + attendance emails):
+   ```sh
+   supabase functions deploy send-ticket-email --project-ref vtocnpgguwggpgvvylzn
+   supabase secrets set RESEND_API_KEY=<your Resend API key>
+   ```
+   Until deployed, purchases still succeed; emails are skipped.
+
 3. **Create your accounts from the app's Register screen**, e.g.
    - `admin@gmail.com` — register, then promote to admin:
      ```sql

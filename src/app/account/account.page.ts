@@ -3,6 +3,7 @@ import { AlertController } from '@ionic/angular/lazy';
 import { Router } from '@angular/router';
 import { AuthService, Session } from '../services/auth.service';
 import { PaymentService, SavedMethod } from '../services/payment.service';
+import { NotificationService, AppNotification } from '../services/notification.service';
 import { runRefresh } from '../utils/refresher';
 
 @Component({
@@ -14,6 +15,7 @@ import { runRefresh } from '../utils/refresher';
 export class AccountPage implements OnInit {
   session: Session | null = null;
   methods: SavedMethod[] = [];
+  notifications: AppNotification[] = [];
   staffCount = 0;
   companyCode = '…';
 
@@ -32,6 +34,7 @@ export class AccountPage implements OnInit {
   constructor(
     public auth: AuthService,
     private paymentService: PaymentService,
+    private notificationService: NotificationService,
     private router: Router,
     private alertCtrl: AlertController,
     private zone: NgZone,
@@ -50,6 +53,10 @@ export class AccountPage implements OnInit {
       this.cdr.detectChanges();
     });
     await this.refreshMethods();
+    this.zone.run(() => {
+      this.notifications = this.notificationService.list(this.session?.email ?? '');
+      this.cdr.detectChanges();
+    });
 
     // Admin extras: staff count + current company code (from Supabase)
     if (this.session?.role === 'admin') {

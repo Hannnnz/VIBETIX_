@@ -74,6 +74,22 @@
     </ion-item>
   </ion-list>
 
+  <!-- Notifications -->
+  <ion-list inset lines="full" class="info-list">
+    <p class="pm-title with-pad">Notifications ({{ notifications.length }})</p>
+    <ion-item *ngFor="let n of notifications.slice(0, 10)">
+      <ion-icon slot="start" [name]="n.type === 'attendance' ? 'checkmark-circle-outline' : 'ticket-outline'"></ion-icon>
+      <ion-label>
+        <h3>{{ n.title }}</h3>
+        <p>{{ n.message }}</p>
+        <p class="notif-time">{{ n.createdAt | date: 'short' }}</p>
+      </ion-label>
+    </ion-item>
+    <div class="pm-empty" *ngIf="notifications.length === 0">
+      <p>No notifications yet — your ticket confirmations and attendance messages will appear here.</p>
+    </div>
+  </ion-list>
+
   <!-- Customer: payment methods -->
   <ion-list inset lines="full" class="pm-list" *ngIf="isCustomer">
     <div class="pm-head">

@@ -6,10 +6,12 @@ import { Capacitor, PluginListenerHandle } from '@capacitor/core';
 import { AppLauncher } from '@capacitor/app-launcher';
 
 import { Concert, ConcertService } from '../services/concert.service';
+import { SupabaseService } from '../services/supabase.service';
 import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 import { RecommendService } from '../services/recommend.service';
 import { PaymentService, SavedMethod, passesLuhn, onlyDigits, maskCardTail, MERCHANT } from '../services/payment.service';
+import { NotificationService } from '../services/notification.service';
 
 type OptionKey = string; // 'saved:<id>' | 'gcash' | 'qr' | 'play'
 
@@ -85,7 +87,9 @@ export class PaymentPage implements OnInit, OnDestroy {
     public auth: AuthService,
     private paymentService: PaymentService,
     private recommend: RecommendService,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private notification: NotificationService,
+    private sb: SupabaseService
   ) {
     // Failsafe: the method list must never be empty, even if the
     // lifecycle below is interrupted before options are assigned.
@@ -598,6 +602,45 @@ export class PaymentPage implements OnInit, OnDestroy {
     // 🎟 strongest taste signal — future Explore order adapts.
     this.recommend.recordPurchase(this.concert);
     this.lastCode = booking.ticketCode;
+    // Notify the customer (in-app notification center + browser notification).
+    const buyerEmail =
+      booking.customerEmail || this.auth.getSession()?.email || '';
+    if (buyerEmail && this.concert) {
+      this.notification.notifyPurchase(
+        buyerEmail,
+        booking.ticketCode,
+        this.concert.name,
+        booking.total
+      );
+      // Send a real confirmation email via the Resend-backed edge function.
+      if (buyerEmail && this.concert) {
+        void this.sb.client.functions
+          .invoke('send-ticket-email', {
+            body: {
+              type: 'purchase',
+              to: buyerEmail,
+              name: this.auth.getSession()?.name ?? '',
+              ticketCode: booking.ticketCode,
+              concertName: this.concert.name,
+              concertDate: this.concert.date,
+              venue: this.concert.venue,
+              tier: booking.tier,
+              seats: booking.seats,
+              total: booking.total,
+            },
+          })
+          .catch(() => undefined);
+      }
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          new Notification('VIBETIX ticket confirmed', {
+            body: `${this.concert.name} · ${booking.ticketCode}`,
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
     // Refresh the booking cache so the new ticket is available immediately.
     void this.bookingService.hydrate().catch(() => undefined);
     this.step = 'success';

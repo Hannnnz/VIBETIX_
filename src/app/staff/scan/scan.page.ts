@@ -4,6 +4,8 @@ import jsQR from 'jsqr';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
+import { NotificationService } from '../../services/notification.service';
+import { SupabaseService } from '../../services/supabase.service';
 import { runRefresh } from '../../utils/refresher';
 
 interface ScanResult {
@@ -35,7 +37,9 @@ export class ScanPage {
     private concertService: ConcertService,
     private toastCtrl: ToastController,
     private zone: NgZone,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private notification: NotificationService,
+    private sb: SupabaseService
   ) {}
 
   ionViewWillEnter(): void {
@@ -187,7 +191,27 @@ export class ScanPage {
     if (outcome.ok) {
       this.result = { state: 'already-used', booking };
       this.lastGoodCode = booking.ticketCode;
-      this.toast(`Gate cleared:\n${outcome.message}`);
+      const concert = this.concertOf(booking);
+      const buyerEmail = booking.customerEmail;
+      if (buyerEmail) {
+        this.notification.notifyAttendance(
+          buyerEmail,
+          booking.ticketCode,
+          concert?.name ?? 'the event'
+        );
+        void this.sb.client.functions
+          .invoke('send-ticket-email', {
+            body: {
+              type: 'attendance',
+              to: buyerEmail,
+              name: booking.customerName || '',
+              ticketCode: booking.ticketCode,
+              concertName: concert?.name ?? 'the event',
+            },
+          })
+          .catch(() => undefined);
+      }
+      this.toast(`Gate cleared:\n${outcome.message}\nAttendance notification sent.`);
     } else if (outcome.reason === 'already-used') {
       this.result = { state: 'already-used', booking };
       this.toast(`${booking.ticketCode} was already checked in.`);
