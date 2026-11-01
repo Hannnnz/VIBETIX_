@@ -75,6 +75,7 @@ export class PaymentPage implements OnInit, OnDestroy {
   /** QR verify handoff state */
   qrChecked = false;
   qrBroken = false;
+  qrImageFailed = false;
 
   lastCode = '';
 
@@ -145,6 +146,7 @@ export class PaymentPage implements OnInit, OnDestroy {
     this.step = 'select';
     this.selected = null;
     this.qrChecked = false;
+    this.qrImageFailed = false;
     this.gcashOpened = false;
     this.gcashOpening = false;
     this.gcashReturned = false;
@@ -249,6 +251,7 @@ export class PaymentPage implements OnInit, OnDestroy {
     this.selected = null;
     this.step = 'select';
     this.qrChecked = false;
+    this.qrImageFailed = false;
     this.gcashOpened = false;
     this.gcashOpening = false;
     this.gcashReturned = false;
@@ -659,7 +662,24 @@ export class PaymentPage implements OnInit, OnDestroy {
 
   /** Static GCash QR image supplied by the merchant (QR folder/STATIC QR.jpg). */
   qrImage(): string {
+    if (this.qrImageFailed) {
+      return (
+        'https://api.qrserver.com/v1/create-qr-code/?size=220x220&bgcolor=FFFFFF&data=' +
+        encodeURIComponent(this.qrPayload())
+      );
+    }
     return 'qr/STATIC%20QR.jpg';
+  }
+
+  /** Fall back to a generated QR if the static image fails to load. */
+  onQrError(): void {
+    if (!this.qrImageFailed) {
+      this.qrImageFailed = true;
+      this.cdr.detectChanges();
+    } else {
+      this.qrBroken = true;
+      this.cdr.detectChanges();
+    }
   }
 
   private async toast(message: string): Promise<void> {

@@ -249,7 +249,7 @@
             *ngIf="!qrBroken"
             [src]="qrImage()"
             alt="VIBETIX payment QR"
-            (error)="qrBroken = true"
+            (error)="onQrError()"
           />
           <div class="qr-fallback" *ngIf="qrBroken">
             <ion-icon name="qr-code-outline"></ion-icon>
