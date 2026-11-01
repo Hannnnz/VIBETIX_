@@ -1,12 +1,15 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
+import { App } from '@capacitor/app';
+import { Capacitor, PluginListenerHandle } from '@capacitor/core';
+import { AppLauncher } from '@capacitor/app-launcher';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 import { RecommendService } from '../services/recommend.service';
-import { PaymentService, SavedMethod, passesLuhn, onlyDigits, maskCardTail, maskPhone, MERCHANT } from '../services/payment.service';
+import { PaymentService, SavedMethod, passesLuhn, onlyDigits, maskCardTail, MERCHANT } from '../services/payment.service';
 
 type OptionKey = string; // 'saved:<id>' | 'gcash' | 'qr' | 'play'
 
@@ -25,7 +28,7 @@ interface PayOption {
   styleUrls: ['./payment.page.scss'],
   standalone: false,
 })
-export class PaymentPage implements OnInit {
+export class PaymentPage implements OnInit, OnDestroy {
   concert: Concert | undefined;
   tierName = '';
   unitPrice = 0;
@@ -49,6 +52,23 @@ export class PaymentPage implements OnInit {
 
   /** GCash deep-link handoff state */
   gcashOpened = false;
+  gcashOpening = false;
+  gcashReturned = false;
+  gcashError = '';
+  /** Which GCash detail was just copied: number / amount / ref. */
+  gcashCopied = '';
+  /** Payment reference shown to the customer and copied into GCash notes. */
+  gcashRef = '';
+
+  /** In-app simulated GCash payment sheet (used when the real app can't be opened). */
+  gcashSimOpen = false;
+  gcashMpin = '';
+  gcashSimProcessing = false;
+  gcashSimError = '';
+
+  private appListener?: PluginListenerHandle;
+  private visibilityHandler?: () => void;
+  private copiedTimer?: ReturnType<typeof setTimeout>;
 
   /** QR verify handoff state */
   qrChecked = false;
@@ -73,7 +93,21 @@ export class PaymentPage implements OnInit {
   }
 
   ngOnInit(): void {
+    // Know when the customer comes back from the GCash app.
+    this.listenForReturn();
     void this.ionViewWillEnter();
+  }
+
+  ngOnDestroy(): void {
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = undefined;
+    }
+    void this.appListener?.remove();
+    this.appListener = undefined;
+    if (this.copiedTimer) {
+      clearTimeout(this.copiedTimer);
+    }
   }
 
   async ionViewWillEnter(): Promise<void> {
@@ -108,6 +142,15 @@ export class PaymentPage implements OnInit {
     this.selected = null;
     this.qrChecked = false;
     this.gcashOpened = false;
+    this.gcashOpening = false;
+    this.gcashReturned = false;
+    this.gcashError = '';
+    this.gcashCopied = '';
+    this.gcashRef = this.makeGcashRef();
+    this.gcashSimOpen = false;
+    this.gcashMpin = '';
+    this.gcashSimProcessing = false;
+    this.gcashSimError = '';
     this.cdr.detectChanges();
   }
 
@@ -156,13 +199,6 @@ export class PaymentPage implements OnInit {
         sub: 'Scan with GCash, Maya or any bank app',
         icon: 'qr-code-outline',
       },
-      {
-        key: 'play',
-        kind: 'play',
-        name: 'Google Play',
-        sub: 'Pay with your Google Play balance',
-        icon: 'logo-google-play',
-      },
     ];
   }
 
@@ -189,6 +225,16 @@ export class PaymentPage implements OnInit {
     }
     this.selected = option;
     this.step = 'pay';
+    if (option.kind === 'gcash') {
+      this.gcashRef = this.makeGcashRef();
+      this.gcashOpened = false;
+      this.gcashOpening = false;
+      this.gcashReturned = false;
+      this.gcashError = '';
+      this.gcashCopied = '';
+      // Open the GCash app immediately when GCash is selected.
+      void this.openGcashApp();
+    }
   }
 
   trackOption(index: number, option: PayOption): string {
@@ -200,6 +246,14 @@ export class PaymentPage implements OnInit {
     this.step = 'select';
     this.qrChecked = false;
     this.gcashOpened = false;
+    this.gcashOpening = false;
+    this.gcashReturned = false;
+    this.gcashError = '';
+    this.gcashCopied = '';
+    this.gcashSimOpen = false;
+    this.gcashMpin = '';
+    this.gcashSimProcessing = false;
+    this.gcashSimError = '';
     this.cdr.detectChanges();
   }
 
@@ -219,31 +273,210 @@ export class PaymentPage implements OnInit {
     return this.selected?.name ?? '';
   }
 
-  /** Tries to hand the payment off to the real GCash app via deep link. */
-  openGcashApp(): void {
-    const ref = 'VTX-' + this.concert?.id + '-' + Date.now();
-    const amount = this.total();
-    // Official scheme used by GCash partners (on a real device this opens the app)
-    const link = `gcash://sendmoney?amount=${amount}&nid=${MERCHANT.tag}&ref=${encodeURIComponent(ref)}`;
-    try {
-      window.location.href = link;
-    } catch {
-      /* ignored — demo fallback below still runs */
+  /**
+   * Hands the payment off to the real GCash app.
+   *
+   * GCash does not publish a "send money" deep link that pre-fills the
+   * receiver and amount, so the honest flow is: open the app, copy the
+   * number/amount, pay inside GCash, then return here to confirm.
+   */
+  async openGcashApp(): Promise<void> {
+    if (this.gcashOpening) {
+      return;
     }
+    this.gcashOpening = true;
     this.gcashOpened = true;
-    this.toast('Handing you over to the GCash app…');
+    this.gcashReturned = false;
+    this.gcashError = '';
+    this.cdr.detectChanges();
+
+    if (Capacitor.isNativePlatform()) {
+      // Try a pre-filling deep link first (receiver + amount + reference),
+      // then fall back to opening the app home, then the Play Store.
+      const amount = this.total().toFixed(2);
+      const ref = encodeURIComponent(this.gcashRef);
+      const num = MERCHANT.gcashNumber;
+      const candidates = [
+        `gcash://sendmoney?number=${num}&amount=${amount}&note=${ref}&name=${encodeURIComponent(MERCHANT.name)}`,
+        `gcash://transfer?number=${num}&amount=${amount}&reference=${ref}`,
+        `gcash://pay?receiver=${num}&amount=${amount}&reference=${ref}`,
+        MERCHANT.gcashScheme,
+      ];
+      let opened = false;
+      for (const url of candidates) {
+        try {
+          await AppLauncher.openUrl({ url });
+          opened = true;
+          break;
+        } catch {
+          /* try the next candidate */
+        }
+      }
+      if (!opened) {
+        try {
+          await AppLauncher.openUrl({ url: MERCHANT.gcashStore });
+          this.gcashError =
+            'GCash is not installed - we opened the Play Store. Install it, then tap "Reopen GCash".';
+        } catch {
+          this.gcashError =
+            'Could not open GCash automatically. Open the app manually and use the details above.';
+        }
+      }
+    } else {
+      // Browser preview (ng serve): can't launch the real app, so open an
+      // in-app GCash payment sheet that is pre-filled with the receiver,
+      // amount and reference — lets you test the full payment flow.
+      this.gcashSimOpen = true;
+      this.gcashMpin = '';
+      this.gcashSimProcessing = false;
+      this.gcashSimError = '';
+      this.gcashReturned = true;
+      this.gcashError = '';
+    }
+
+    this.gcashOpening = false;
+    this.cdr.detectChanges();
   }
 
-  /** "I paid inside the app" → gateway-level receiver verification, then settle. */
+  /** Close the in-app GCash payment sheet without paying. */
+  closeGcashSim(): void {
+    this.gcashSimOpen = false;
+    this.gcashMpin = '';
+    this.gcashSimProcessing = false;
+    this.gcashSimError = '';
+    this.cdr.detectChanges();
+  }
+
+  /** Simulated GCash payment (browser preview): validate MPIN then settle. */
+  async gcashSimPay(): Promise<void> {
+    if (this.gcashSimProcessing) {
+      return;
+    }
+    const mpin = (this.gcashMpin || '').trim();
+    if (!/^\d{4}$/.test(mpin)) {
+      this.gcashSimError = 'Enter your 4-digit GCash MPIN to continue.';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.gcashSimProcessing = true;
+    this.gcashSimError = '';
+    this.cdr.detectChanges();
+
+    // Brief gateway-style pause so the flow feels like a real payment.
+    await new Promise<void>((resolve) => {
+      setTimeout(() => resolve(), 1200);
+    });
+
+    this.gcashSimProcessing = false;
+    this.gcashSimOpen = false;
+    this.gcashReturned = true;
+    this.gcashOpened = true;
+    this.cdr.detectChanges();
+    void this.settle('GCash · ' + MERCHANT.name);
+  }
+
+  /** "I paid inside the app" → settle the booking and issue the ticket. */
   gcashConfirmPaid(): void {
-    void this.settle('GCash');
+    if (this.step !== 'pay') {
+      return;
+    }
+    this.gcashSimOpen = false;
+    void this.settle('GCash · ' + MERCHANT.name);
+  }
+
+  /** Copies one of the GCash payment details to the clipboard. */
+  async copyGcash(field: 'number' | 'amount' | 'ref'): Promise<void> {
+    const value =
+      field === 'number'
+        ? MERCHANT.gcashNumber
+        : field === 'amount'
+          ? this.total().toFixed(2)
+          : this.gcashRef;
+    const ok = await this.copyText(value);
+    if (!ok) {
+      await this.toast('Could not copy - long-press the value instead.');
+      return;
+    }
+    this.gcashCopied = field;
+    this.cdr.detectChanges();
+    if (this.copiedTimer) {
+      clearTimeout(this.copiedTimer);
+    }
+    this.copiedTimer = setTimeout(() => {
+      this.gcashCopied = '';
+      this.cdr.detectChanges();
+    }, 1800);
+  }
+
+  private async copyText(value: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      /* fall through - older WebViews need execCommand */
+    }
+    try {
+      const area = document.createElement('textarea');
+      area.value = value;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Re-activate the page when the customer returns from GCash. */
+  private listenForReturn(): void {
+    if (this.visibilityHandler) {
+      return;
+    }
+    this.visibilityHandler = () => {
+      if (document.visibilityState === 'visible' && this.gcashOpened) {
+        this.gcashReturned = true;
+        this.cdr.detectChanges();
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+
+    void App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive && this.gcashOpened) {
+        this.gcashReturned = true;
+        this.cdr.detectChanges();
+      }
+    })
+      .then((handle) => {
+        this.appListener = handle;
+      })
+      .catch(() => undefined);
+  }
+
+  private makeGcashRef(): string {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    try {
+      const bytes = new Uint8Array(6);
+      crypto.getRandomValues(bytes);
+      const code = Array.from(bytes)
+        .map((b) => alphabet[b % alphabet.length])
+        .join('');
+      return 'GC-' + code;
+    } catch {
+      return 'GC-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
   }
 
   /** Simulated bank/GCash app scan: verify receiver then settle. */
   verifyQrPayment(): void {
     if (!this.qrChecked) {
       this.qrChecked = true;
-      this.toast(`Receiver verified ✓ · ${MERCHANT.name} · ${MERCHANT.tag}`);
+      this.toast(
+        `Receiver verified ✓ · ${MERCHANT.name} · ${MERCHANT.gcashNumberDisplay}`
+      );
       return;
     }
     void this.settle('QR · ' + MERCHANT.name);
@@ -381,11 +614,9 @@ export class PaymentPage implements OnInit {
     return `VIBETIXPAY|${MERCHANT.name}|${MERCHANT.tag}|${this.total()}`;
   }
 
+  /** Static GCash QR image supplied by the merchant (QR folder/STATIC QR.jpg). */
   qrImage(): string {
-    return (
-      'https://api.qrserver.com/v1/create-qr-code/?size=220x220&bgcolor=FFFFFF&data=' +
-      encodeURIComponent(this.qrPayload())
-    );
+    return 'qr/STATIC%20QR.jpg';
   }
 
   private async toast(message: string): Promise<void> {

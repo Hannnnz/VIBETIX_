@@ -14,11 +14,24 @@ export interface SavedMethod {
   meta?: string;
 }
 
-/** The only receiver the app will ever settle to. */
+/**
+ * The only receiver the app will ever settle to.
+ *
+ * GCash shows the short account name "Dennis S"; the full name is kept for
+ * receipts. The mobile number is the actual Send Money receiver.
+ */
 export const MERCHANT = {
-  name: 'VIBETIX Official',
-  scope: 'Merchant payouts account (verified)',
-  tag: 'VTX-MERCH-PH',
+  name: 'Dennis S',
+  fullName: 'Dennis Silleza',
+  scope: 'GCash account',
+  tag: '09124948013',
+  gcashNumber: '09124948013',
+  gcashNumberDisplay: '0912 494 8013',
+  /** Deep link that opens the GCash app on Android. */
+  gcashScheme: 'gcash://',
+  /** Shown when GCash is not installed. */
+  gcashStore:
+    'https://play.google.com/store/apps/details?id=com.globe.gcash.android',
 };
 
 /** Luhn checksum for real debit/credit card numbers. */

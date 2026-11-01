@@ -22,6 +22,7 @@
     "@angular/router": "22.2.3",
     "@capacitor/android": "^8.6.0",
     "@capacitor/app": "8.1.2",
+    "@capacitor/app-launcher": "^8.0.1",
     "@capacitor/camera": "^8.2.6",
     "@capacitor/core": "8.6.0",
     "@capacitor/haptics": "8.0.2",

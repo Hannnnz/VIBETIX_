@@ -51,7 +51,7 @@
     <p class="fine" *ngIf="noSavedMethods">
       <ion-icon name="flash-outline"></ion-icon>
       You have no saved payment methods — no problem! Pay
-      <strong>directly</strong> below with GCash, QR or Google Play,
+      <strong>directly</strong> below with GCash or QR,
       or tap a saved method if you add one later in your Profile.
     </p>
 
@@ -81,21 +81,113 @@
       <div class="section-title"><span class="step">2</span><h3>Pay with GCash</h3></div>
       <div class="pay-panel card-lg">
         <div class="gcash-brand">GCash</div>
-        <p class="panel-line">
-          Paying
-          <strong>{{ total() | currency: 'PHP' : 'symbol-narrow' }}</strong>
-          to <strong>{{ merchant.name }}</strong>
-          {{ savedGcash() ? 'using ' + savedGcash()?.detail : '' }}
+
+        <div class="gcash-account">
+          <div class="gcash-avatar">DS</div>
+          <div class="gcash-who">
+            <strong>{{ merchant.name }}</strong>
+            <span>{{ merchant.fullName }} · GCash</span>
+          </div>
+          <ion-chip class="gcash-ver">Verified</ion-chip>
+        </div>
+
+        <div class="gcash-rows">
+          <div class="gcash-row">
+            <span>GCash number</span>
+            <strong>{{ merchant.gcashNumberDisplay }}</strong>
+            <ion-button fill="clear" size="small" (click)="copyGcash('number')">
+              {{ gcashCopied === 'number' ? 'Copied ✓' : 'Copy' }}
+            </ion-button>
+          </div>
+          <div class="gcash-row">
+            <span>Amount</span>
+            <strong>{{ total() | currency: 'PHP' : 'symbol-narrow' }}</strong>
+            <ion-button fill="clear" size="small" (click)="copyGcash('amount')">
+              {{ gcashCopied === 'amount' ? 'Copied ✓' : 'Copy' }}
+            </ion-button>
+          </div>
+          <!-- Reference hidden per request -->
+        </div>
+
+        <ol class="gcash-steps">
+          <li>Tap <strong>Open GCash app</strong> below.</li>
+          <li>In GCash, choose <strong>Send Money</strong> and paste the number.</li>
+          <li>
+            Enter
+            <strong>{{ total() | currency: 'PHP' : 'symbol-narrow' }}</strong>
+            and confirm with your MPIN.
+          </li>
+          <li>Come back here and tap <strong>I've paid</strong>.</li>
+        </ol>
+
+        <p class="gcash-from" *ngIf="savedGcash()">
+          Paying from {{ savedGcash()?.detail }}
         </p>
-        <ion-button *ngIf="!gcashOpened" expand="block" class="red-btn" (click)="openGcashApp()">
-          Open GCash app
+
+        <ion-button
+          *ngIf="!gcashOpened"
+          expand="block"
+          class="red-btn"
+          [disabled]="gcashOpening"
+          (click)="openGcashApp()"
+        >
+          <ion-icon slot="start" name="open-outline"></ion-icon>
+          {{ gcashOpening ? 'Opening GCash…' : 'Open GCash app' }}
         </ion-button>
+
         <ng-container *ngIf="gcashOpened">
-          <p class="hint">If the GCash app didn't open (browser preview), confirm below.</p>
+          <div class="gcash-return" *ngIf="gcashReturned">
+            <ion-icon name="checkmark-circle-outline"></ion-icon>
+            <span>Welcome back! Confirm once GCash shows the payment as sent.</span>
+          </div>
           <ion-button expand="block" class="red-btn" (click)="gcashConfirmPaid()">
-            I paid — confirm payment
+            <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
+            I've paid — confirm payment
+          </ion-button>
+          <ion-button expand="block" fill="clear" (click)="openGcashApp()">
+            Reopen GCash
           </ion-button>
         </ng-container>
+
+        <p class="gcash-error" *ngIf="gcashError">{{ gcashError }}</p>
+
+        <!-- In-app GCash payment sheet (browser preview / when the app can't be launched) -->
+        <div class="gcash-sim" *ngIf="gcashSimOpen">
+          <div class="gcash-sim-card">
+            <div class="gcash-sim-head">GCash</div>
+            <div class="gcash-sim-row">Paying <strong>{{ merchant.name }}</strong></div>
+            <div class="gcash-sim-row gcash-sim-num">{{ merchant.gcashNumberDisplay }}</div>
+            <div class="gcash-sim-amount">{{ total() | currency: 'PHP' : 'symbol-narrow' }}</div>
+            <ion-item lines="none" class="field">
+              <ion-input
+                label="MPIN"
+                labelPlacement="floating"
+                placeholder="••••"
+                [(ngModel)]="gcashMpin"
+                type="password"
+                inputmode="numeric"
+                maxlength="4"
+              ></ion-input>
+            </ion-item>
+            <p class="gcash-sim-err" *ngIf="gcashSimError">{{ gcashSimError }}</p>
+            <ion-button
+              expand="block"
+              class="red-btn"
+              [disabled]="gcashSimProcessing"
+              (click)="gcashSimPay()"
+            >
+              {{ gcashSimProcessing ? 'Processing…' : 'Pay now' }}
+            </ion-button>
+            <ion-button expand="block" fill="clear" (click)="closeGcashSim()">
+              Cancel
+            </ion-button>
+          </div>
+        </div>
+
+        <p class="fine">
+          This sends the payment straight to {{ merchant.fullName }}'s GCash
+          account. Keep the reference for your receipt.
+        </p>
       </div>
     </ng-container>
 

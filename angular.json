@@ -29,6 +29,11 @@
                 "output": "assets"
               },
               {
+                "glob": "**/*",
+                "input": "QR folder",
+                "output": "qr"
+              },
+              {
                 "glob": "**/*.svg",
                 "input": "node_modules/ionicons/dist/ionicons/svg",
                 "output": "./svg"
