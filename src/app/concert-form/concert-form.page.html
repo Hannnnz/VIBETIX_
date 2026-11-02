@@ -83,28 +83,38 @@
     </ion-item>
 
     <!-- Cover image -->
-    <p class="picker-label">Cover image (URL)</p>
-    <div class="cover-preview">
-      <img
-        *ngIf="form.imageUrl && !previewBroken"
-        [src]="form.imageUrl"
-        alt="Cover preview"
-        (error)="previewBroken = true"
-      />
-      <div class="no-img" *ngIf="!form.imageUrl || previewBroken">
+    <p class="picker-label">Cover image</p>
+    <div class="cover-preview upload-area" (click)="chooseImage()">
+      <img *ngIf="previewUrl" [src]="previewUrl" alt="Cover preview" />
+      <div class="no-img" *ngIf="!previewUrl">
         <ion-icon name="image-outline"></ion-icon>
         <span>No image — emoji fallback will be used</span>
       </div>
+      <input
+        #fileInput
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        (change)="onFileSelected($event)"
+        hidden
+      />
     </div>
-    <ion-item lines="none" class="field">
-      <ion-input
-        label="Image URL"
-        labelPlacement="floating"
-        [(ngModel)]="form.imageUrl"
-        (ngModelChange)="previewBroken = false"
-        placeholder="https://…"
-      ></ion-input>
-    </ion-item>
+    <div class="cover-actions">
+      <ion-button fill="outline" size="small" (click)="chooseImage()" [disabled]="saving">
+        <ion-icon slot="start" name="image-outline"></ion-icon>
+        {{ previewUrl ? 'Replace' : 'Choose image' }}
+      </ion-button>
+      <ion-button
+        fill="clear"
+        size="small"
+        color="danger"
+        (click)="removeImage()"
+        [disabled]="saving || !previewUrl"
+      >
+        <ion-icon slot="start" name="trash-outline"></ion-icon>
+        Remove
+      </ion-button>
+    </div>
+    <p class="field-error" *ngIf="imageError">{{ imageError }}</p>
 
     <!-- House rules -->
     <p class="picker-label">Event rules · one per line</p>
@@ -118,8 +128,9 @@
       ></ion-textarea>
     </ion-item>
 
-    <ion-button expand="block" class="save-btn" (click)="save()">
-      {{ isEditing ? 'Save changes' : 'Create event' }}
+    <ion-button expand="block" class="save-btn" (click)="save()" [disabled]="saving">
+      <ion-spinner *ngIf="saving" name="crescent"></ion-spinner>
+      <span *ngIf="!saving">{{ isEditing ? 'Save changes' : 'Create event' }}</span>
     </ion-button>
   </div>
 </ion-content>

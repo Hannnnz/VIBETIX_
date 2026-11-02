@@ -145,6 +145,7 @@ create table public.concerts (
   base_price    numeric(10,2) not null check (base_price >= 0),
   description   text not null default '',
   image_url     text,
+  image_path    text,
   rules         text,
   emoji         text not null default '🎤',
   color         smallint not null default 1 check (color between 1 and 6),

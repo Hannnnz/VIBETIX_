@@ -16,6 +16,8 @@ export interface Concert {
   description: string;
   /** Optional real cover image; falls back to the emoji + gradient. */
   imageUrl?: string;
+  /** Storage object path for the cover image (used for delete/update). */
+  imagePath?: string;
   /** House rules shown to attendees and managed by admins. */
   rules?: string;
   emoji: string;
@@ -41,6 +43,7 @@ interface ConcertRow {
   base_price: number;
   description: string;
   image_url: string | null;
+  image_path: string | null;
   rules: string | null;
   emoji: string;
   color: number;
@@ -132,6 +135,7 @@ export class ConcertService {
       price: Number(row.base_price),
       description: row.description,
       imageUrl: row.image_url ?? undefined,
+      imagePath: row.image_path ?? undefined,
       rules: row.rules ?? undefined,
       emoji: row.emoji,
       color: row.color,
@@ -284,6 +288,7 @@ export class ConcertService {
       base_price: input.price,
       description: input.description,
       image_url: input.imageUrl ?? null,
+      image_path: input.imagePath ?? null,
       rules: input.rules ?? null,
       emoji: input.emoji,
       color,
@@ -339,6 +344,7 @@ export class ConcertService {
     if (changes.price !== undefined) payload['base_price'] = changes.price;
     if (changes.description !== undefined) payload['description'] = changes.description;
     if (changes.imageUrl !== undefined) payload['image_url'] = changes.imageUrl ?? null;
+    if (changes.imagePath !== undefined) payload['image_path'] = changes.imagePath ?? null;
     if (changes.rules !== undefined) payload['rules'] = changes.rules ?? null;
     if (changes.emoji !== undefined) payload['emoji'] = changes.emoji;
     if (Object.keys(payload).length === 0) {
@@ -363,6 +369,8 @@ export class ConcertService {
   }
 
   async remove(id: string): Promise<void> {
+    const concert = this.getById(id);
+    const imagePath = concert?.imagePath;
     const { error } = await this.client.from('concerts').delete().eq('id', id);
     if (error) {
       this.zone.run(() => (this.lastSaveError = error.message));
@@ -375,5 +383,13 @@ export class ConcertService {
       this.tiers = this.tiers.filter((t) => t.concertId !== id);
       this.changes$.next();
     });
+    // Remove the uploaded cover file (if any). Plain-URL covers are left alone.
+    if (imagePath) {
+      try {
+        await this.client.storage.from('event-images').remove([imagePath]);
+      } catch (e) {
+        console.error('event image delete failed', e);
+      }
+    }
   }
 }
