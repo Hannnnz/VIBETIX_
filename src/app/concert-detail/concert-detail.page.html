@@ -65,12 +65,16 @@
       <h3>Choose ticket type</h3>
     </div>
 
-    <div class="tier-list">
+    <div class="tier-list" role="radiogroup" aria-label="Choose ticket type">
       <div
         class="tier-row"
         *ngFor="let t of tiers"
+        role="radio"
+        tabindex="0"
+        [attr.aria-checked]="selectedTier?.name === t.name"
         [class.selected]="selectedTier?.name === t.name"
         (click)="chooseTier(t)"
+        (keydown)="onTierKeydown($event, t)"
       >
         <div class="tier-radio"></div>
         <div class="tier-info">
@@ -83,37 +87,224 @@
       </div>
     </div>
 
-    <!-- Step 2 · seat map -->
-    <div class="section-title" *ngIf="selectedTier">
+    <!-- Step 2 · arena seat map -->
+    <div class="section-title">
       <span class="step">2</span>
-      <h3>Pick your seats · {{ selectedTier.name }}</h3>
+      <h3>Pick your seats</h3>
     </div>
 
-    <div class="seat-map" *ngIf="selectedTier">
-      <div class="stage">STAGE</div>
-
-      <div class="seat-legend">
-        <span class="legend-item"><i class="seat dot-available"></i> Available</span>
-        <span class="legend-item"><i class="seat dot-taken"></i> Taken</span>
-        <span class="legend-item"><i class="seat dot-selected"></i> Yours</span>
+    <div class="arena-card">
+      <div class="arena-head">
+        <div>
+          <h4>Arena seat map</h4>
+          <p *ngIf="selectedTier; else mapHint">
+            {{ selectedTier.name }} highlighted · tap a section to pick seats
+          </p>
+          <ng-template #mapHint>
+            <p>Tap a section or choose a ticket type to begin</p>
+          </ng-template>
+        </div>
+        <span class="arena-badge" *ngIf="seatsLoading">Checking seats…</span>
       </div>
 
-      <div class="seat-grid">
-        <div class="seat-row" *ngFor="let row of rows">
-          <span class="row-label">{{ row }}</span>
+      <div class="filter-chips" role="group" aria-label="Highlight ticket type">
+        <button
+          type="button"
+          class="filter-chip"
+          *ngFor="let chip of filterChips"
+          [class.on]="filterKey === chip.key"
+          [attr.aria-pressed]="filterKey === chip.key"
+          (click)="setFilter(chip.key)"
+        >
+          {{ chip.label }}
+        </button>
+      </div>
+
+      <div class="map-wrap">
+        <svg
+          [attr.viewBox]="mapViewBox"
+          role="img"
+          aria-label="Arena seat map with the stage in the centre and ticket sections arranged in rings around it"
+        >
+          <ellipse
+            class="arena-bowl"
+            [attr.cx]="mapCenterX"
+            [attr.cy]="mapCenterY"
+            [attr.rx]="mapOuterRadius + 4"
+            [attr.ry]="(mapOuterRadius + 4) * mapScaleY"
+          ></ellipse>
+
+          <g>
+            <path
+              *ngFor="let s of sections"
+              class="arena-section"
+              [ngClass]="sectionClasses(s)"
+              [attr.d]="s.path"
+              role="button"
+              [attr.tabindex]="isSectionUnavailable(s) ? -1 : 0"
+              [attr.aria-label]="sectionAria(s)"
+              [attr.aria-disabled]="isSectionUnavailable(s) ? 'true' : null"
+              (click)="openSection(s)"
+              (keydown)="onSectionKeydown($event, s)"
+              (pointerenter)="showSectionTip($event, s)"
+              (pointermove)="showSectionTip($event, s)"
+              (pointerdown)="showSectionTip($event, s)"
+              (pointerleave)="hideSectionTip()"
+              (focus)="showSectionTipForFocus(s, $event)"
+              (blur)="hideSectionTip()"
+            ></path>
+          </g>
+
+          <g class="stage" aria-hidden="true">
+            <rect
+              class="stage-base"
+              [attr.x]="mapCenterX - 40"
+              [attr.y]="mapCenterY - 22"
+              width="80"
+              height="44"
+              rx="22"
+            ></rect>
+            <rect
+              class="stage-inner"
+              [attr.x]="mapCenterX - 31"
+              [attr.y]="mapCenterY - 14"
+              width="62"
+              height="28"
+              rx="14"
+            ></rect>
+            <text
+              class="stage-label"
+              [attr.x]="mapCenterX"
+              [attr.y]="mapCenterY + 1"
+            >STAGE</text>
+          </g>
+
+          <text
+            *ngFor="let s of sections"
+            class="section-label"
+            aria-hidden="true"
+            [attr.x]="s.labelX"
+            [attr.y]="s.labelY"
+            [attr.font-size]="s.fontSize"
+          >{{ s.short }}</text>
+        </svg>
+
+        <div
+          class="map-tooltip"
+          *ngIf="tooltipSection"
+          aria-hidden="true"
+          [style.left.px]="tooltipX"
+          [style.top.px]="tooltipY"
+        >
+          <strong>{{ tooltipSection.label }}</strong>
+          <span>{{ tierForGroup(tooltipSection.group)?.name ?? groupLabel(tooltipSection.group) }}</span>
+          <span class="tip-price" *ngIf="tierForGroup(tooltipSection.group) as tier">
+            {{ tier.price | currency: 'PHP' : 'symbol-narrow' }} each
+          </span>
+          <span class="tip-price" *ngIf="!tierForGroup(tooltipSection.group)">Unavailable</span>
+        </div>
+      </div>
+
+      <div class="map-legend" aria-hidden="true">
+        <span class="legend-item" *ngFor="let group of tierGroups">
+          <i class="swatch" [ngClass]="'group-' + group.key"></i>
+          {{ groupLabel(group.key) }}
+        </span>
+      </div>
+
+      <p class="map-note">
+        Stage at the centre · sections are a guide only, not to scale.
+      </p>
+
+      <div class="seat-panel" *ngIf="activeSection as section" #seatPanel>
+        <div class="seat-panel-head">
+          <div>
+            <h4>{{ section.label }}</h4>
+            <p>
+              {{ tierForGroup(section.group)?.name }} ·
+              {{ tierForGroup(section.group)?.price | currency: 'PHP' : 'symbol-narrow' }}
+              each
+            </p>
+          </div>
           <button
             type="button"
-            class="seat"
-            *ngFor="let col of cols"
-            [class.selected]="isSelected(row + col)"
-            [class.taken]="isTaken(row + col)"
-            [disabled]="isTaken(row + col)"
-            (click)="toggleSeat(row + col)"
-          >
-            {{ col }}
-          </button>
-          <span class="row-label">{{ row }}</span>
+            class="panel-close"
+            aria-label="Close seat picker"
+            (click)="closeSection()"
+          >&times;</button>
         </div>
+
+        <ng-container *ngIf="!isGenAdSelected(); else genAdPanel">
+          <div class="seat-legend">
+            <span class="legend-item"><i class="dot dot-available"></i> Available</span>
+            <span class="legend-item"><i class="dot dot-selected"></i> Yours</span>
+            <span class="legend-item"><i class="dot dot-taken"></i> Taken</span>
+          </div>
+
+          <div
+            class="seat-grid-scroll"
+            role="grid"
+            [attr.aria-label]="'Seat grid for ' + section.label"
+          >
+            <div class="seat-head" role="row">
+              <span class="row-label" role="columnheader" aria-label="Row"></span>
+              <span class="col-label" role="columnheader" *ngFor="let c of cols">{{ c }}</span>
+            </div>
+
+            <div class="seat-row" *ngFor="let row of rows" role="row">
+              <span class="row-label" role="rowheader">{{ row }}</span>
+              <button
+                type="button"
+                class="seat"
+                role="gridcell"
+                *ngFor="let col of cols"
+                [class.selected]="isSeatSelected(seatCode(section, row, col))"
+                [class.taken]="isSeatTaken(seatCode(section, row, col))"
+                [disabled]="isSeatTaken(seatCode(section, row, col))"
+                [attr.aria-label]="seatAria(section, row, col)"
+                [attr.aria-pressed]="isSeatSelected(seatCode(section, row, col))"
+                (click)="toggleSeat(seatCode(section, row, col))"
+              >{{ col }}</button>
+            </div>
+          </div>
+
+          <p class="seat-note">
+            {{ seatCount() }} of {{ maxSeats }} seats selected. Tap a green seat to release it ·
+            swipe the row for seats 1–8.
+          </p>
+        </ng-container>
+
+        <ng-template #genAdPanel>
+          <div class="genad-panel">
+            <div>
+              <h5>Free seating · no seat numbers</h5>
+              <p>
+                Choose how many Gen Ad tickets you need. You'll enter as a group
+                and pick any open spot in the Gen Ad sides.
+              </p>
+            </div>
+            <div class="qty-stepper" role="group" aria-label="Gen Ad quantity">
+              <button
+                type="button"
+                class="qty-btn"
+                aria-label="Remove one Gen Ad ticket"
+                [disabled]="genAdQty <= 1"
+                (click)="changeGenAdQty(-1)"
+              >−</button>
+              <span class="qty-value" aria-live="polite">{{ genAdQty }}</span>
+              <button
+                type="button"
+                class="qty-btn"
+                aria-label="Add one Gen Ad ticket"
+                [disabled]="genAdQty >= maxSeats"
+                (click)="changeGenAdQty(1)"
+              >+</button>
+            </div>
+            <p class="seat-note">
+              {{ genAdQty }} of {{ maxSeats }} tickets selected.
+            </p>
+          </div>
+        </ng-template>
       </div>
     </div>
 
@@ -126,10 +317,10 @@
     <div class="summary card-lg">
       <div class="summary-row">
         <span>Seats</span>
-        <span class="seats-chips" *ngIf="seats().length">
-          <span class="seat-chip" *ngFor="let s of seats()">{{ s }}</span>
+        <span class="seats-chips" *ngIf="selectionCount() > 0">
+          <span class="seat-chip" *ngFor="let s of summarySeats()">{{ s }}</span>
         </span>
-        <span class="muted" *ngIf="!seats().length">none selected</span>
+        <span class="muted" *ngIf="selectionCount() === 0">none selected</span>
       </div>
       <div class="summary-row">
         <span>Type &amp; price</span>
@@ -147,13 +338,14 @@
       <ion-button
         expand="block"
         class="buy-btn"
-        [disabled]="!selectedTier || seats().length === 0"
+        [disabled]="!canBuy()"
         (click)="buy()"
       >
-        {{ seats().length ? 'Buy ' + seats().length + ' seat(s)' : 'Buy tickets' }}
+        {{ buying ? 'Checking seats…' : buyLabel() }}
       </ion-button>
       <p class="buy-note">
-        Next: choose GCash, debit card, QR or Google Play to pay securely.
+        Up to {{ maxSeats }} tickets per purchase. Next: choose GCash, debit card,
+        QR or Google Play to pay securely.
       </p>
     </div>
   </section>

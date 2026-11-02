@@ -41,6 +41,18 @@ jobs:
             npx cap add android
           fi
 
+      - name: Set app version
+        run: |
+          python3 - <<'PY'
+          import re
+          p = 'android/app/build.gradle'
+          s = open(p).read()
+          s = re.sub(r'versionCode\s+\d+', 'versionCode 200', s)
+          s = re.sub(r'versionName\s+"[^"]*"', 'versionName "2.0.0"', s)
+          open(p, 'w').write(s)
+          PY
+          grep -n 'versionCode\|versionName' android/app/build.gradle
+
       - name: Sync Capacitor
         run: npx cap sync android
 
@@ -68,12 +80,12 @@ jobs:
           "$APKSIGNER" sign --ks "$KS" --ks-key-alias vibetix \
             --ks-pass pass:vibetix123 --key-pass pass:vibetix123 \
             --out /tmp/vibetix-release.apk "$APK"
-          cp /tmp/vibetix-release.apk ./VIBETIX-v1.3.apk
-          ls -la ./VIBETIX-v1.3.apk
+          cp /tmp/vibetix-release.apk ./VIBETIX-v2.apk
+          ls -la ./VIBETIX-v2.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VIBETIX-v1.3-apk
-          path: android/app/build/outputs/apk/release/VIBETIX-v1.3.apk
+          name: VIBETIX-v2-apk
+          path: android/app/build/outputs/apk/release/VIBETIX-v2.apk
           if-no-files-found: error
