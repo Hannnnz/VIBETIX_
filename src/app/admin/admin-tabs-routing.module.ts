@@ -34,6 +34,13 @@ const routes: Routes = [
           ),
       },
       {
+        path: 'reviews',
+        loadChildren: () =>
+          import('./admin-reviews/admin-reviews.module').then(
+            (m) => m.AdminReviewsPageModule
+          ),
+      },
+      {
         path: 'account',
         loadChildren: () =>
           import('../account/account.module').then((m) => m.AccountPageModule),

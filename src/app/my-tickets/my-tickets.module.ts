@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular/lazy';
 import { FormsModule } from '@angular/forms';
 import { MyTicketsPage } from './my-tickets.page';
+import { ReviewFormComponent } from '../components/review-form/review-form.component';
 
 import { MyTicketsPageRoutingModule } from './my-tickets-routing.module';
 
@@ -12,6 +13,7 @@ import { MyTicketsPageRoutingModule } from './my-tickets-routing.module';
     FormsModule,
     IonicModule,
     MyTicketsPageRoutingModule,
+    ReviewFormComponent,
   ],
   declarations: [MyTicketsPage],
 })

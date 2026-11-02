@@ -4,6 +4,7 @@ import { AlertController, ToastController } from '@ionic/angular/lazy';
 import { Subscription } from 'rxjs';
 
 import { Concert, ConcertService } from '../../services/concert.service';
+import { EventRating, ReviewService } from '../../services/review.service';
 import { runRefresh } from '../../utils/refresher';
 
 @Component({
@@ -14,9 +15,12 @@ import { runRefresh } from '../../utils/refresher';
 })
 export class AdminEventsPage {
   private concertSub?: Subscription;
+  private reviewSub?: Subscription;
+  private ratings = new Map<string, EventRating>();
 
   constructor(
     private concertService: ConcertService,
+    private reviewService: ReviewService,
     private router: Router,
     private toastCtrl: ToastController,
     private alertCtrl: AlertController,
@@ -37,22 +41,44 @@ export class AdminEventsPage {
 
   ionViewWillEnter(): void {
     this.concertSub?.unsubscribe();
+    this.reviewSub?.unsubscribe();
     this.concertSub = this.concertService.changes$.subscribe(() => {
       this.cdr.detectChanges();
     });
+    this.reviewSub = this.reviewService.changes$.subscribe(() => {
+      void this.loadRatings();
+    });
     void this.concertService.hydrate().then(() => this.cdr.detectChanges());
+    void this.loadRatings();
   }
 
   ionViewWillLeave(): void {
     this.concertSub?.unsubscribe();
+    this.reviewSub?.unsubscribe();
   }
 
   /** Pull-down-to-refresh refetches the event catalog. */
   async doRefresh(event: Event): Promise<void> {
     await runRefresh(event, async () => {
-      await this.concertService.hydrate();
+      await Promise.all([
+        this.concertService.hydrate(),
+        this.loadRatings(),
+      ]);
       this.cdr.detectChanges();
     });
+  }
+
+  private async loadRatings(): Promise<void> {
+    try {
+      this.ratings = await this.reviewService.eventRatings();
+      this.cdr.detectChanges();
+    } catch {
+      /* ratings unavailable — keep the last known values */
+    }
+  }
+
+  ratingOf(concert: Concert): EventRating | undefined {
+    return this.ratings.get(concert.id);
   }
 
   edit(concert: Concert): void {

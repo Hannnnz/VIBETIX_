@@ -27,6 +27,11 @@ const routes: Routes = [
           import('../my-tickets/my-tickets.module').then((m) => m.MyTicketsPageModule),
       },
       {
+        path: 'my-reviews',
+        loadChildren: () =>
+          import('../my-reviews/my-reviews.module').then((m) => m.MyReviewsPageModule),
+      },
+      {
         path: 'account',
         loadChildren: () =>
           import('../account/account.module').then((m) => m.AccountPageModule),

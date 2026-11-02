@@ -1,8 +1,10 @@
 import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
+import { Router } from '@angular/router';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
 import { AuthService, Session } from '../../services/auth.service';
+import { Review, ReviewService, ReviewStats } from '../../services/review.service';
 import { runRefresh } from '../../utils/refresher';
 
 @Component({
@@ -15,13 +17,19 @@ export class AdminDashboardPage {
   session: Session | null = null;
   readonly tierOrder = ['SVIP', 'VIP', 'Lower Box', 'Upper Box', 'Gen Ad'];
 
+  reviewStats: ReviewStats | null = null;
+  moderation: Review[] = [];
+
   private bookingSub?: any;
   private concertSub?: any;
+  private reviewSub?: any;
 
   constructor(
     private concertService: ConcertService,
     private bookingService: BookingService,
+    private reviewService: ReviewService,
     private auth: AuthService,
+    private router: Router,
     private zone: NgZone,
     private cdr: ChangeDetectorRef
   ) {}
@@ -31,6 +39,7 @@ export class AdminDashboardPage {
     this.session = this.auth.getSession();
     this.bookingSub?.unsubscribe?.();
     this.concertSub?.unsubscribe?.();
+    this.reviewSub?.unsubscribe?.();
     this.bookingSub = this.bookingService.changes$.subscribe(() => {
       this.zone.run(() => {
         this.session = this.auth.getSession();
@@ -43,10 +52,14 @@ export class AdminDashboardPage {
         this.cdr.detectChanges();
       });
     });
+    this.reviewSub = this.reviewService.changes$.subscribe(() => {
+      this.zone.run(() => void this.loadReviews());
+    });
     await Promise.all([
       this.bookingService.hydrate(),
       this.concertService.hydrate(),
     ]).catch(() => undefined);
+    await this.loadReviews();
     this.cdr.detectChanges();
   }
 
@@ -56,10 +69,31 @@ export class AdminDashboardPage {
       await Promise.all([
         this.bookingService.hydrate(),
         this.concertService.hydrate(),
+        this.loadReviews(),
       ]);
       this.session = this.auth.getSession();
       this.cdr.detectChanges();
     });
+  }
+
+  private async loadReviews(): Promise<void> {
+    try {
+      const [stats, reported] = await Promise.all([
+        this.reviewService.adminStats(),
+        this.reviewService.adminReported(3),
+      ]);
+      this.zone.run(() => {
+        this.reviewStats = stats;
+        this.moderation = reported;
+        this.cdr.detectChanges();
+      });
+    } catch {
+      /* reviews unavailable — keep the last known values */
+    }
+  }
+
+  goReviews(): void {
+    void this.router.navigate(['/admin/reviews']);
   }
 
   stats() {
@@ -91,6 +125,7 @@ export class AdminDashboardPage {
   ionViewWillLeave(): void {
     this.bookingSub?.unsubscribe?.();
     this.concertSub?.unsubscribe?.();
+    this.reviewSub?.unsubscribe?.();
   }
 
   concertOf(booking: Booking): Concert | undefined {

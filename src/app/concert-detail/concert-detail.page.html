@@ -348,6 +348,130 @@
         QR or Google Play to pay securely.
       </p>
     </div>
+
+    <!-- Reviews -->
+    <div class="section-title reviews-title">
+      <span class="step">★</span>
+      <h3>Reviews</h3>
+    </div>
+
+    <div class="reviews-loading" *ngIf="reviewsLoading">
+      <ion-spinner name="crescent"></ion-spinner>
+      <span>Loading reviews…</span>
+    </div>
+
+    <div class="reviews-error card-lg" *ngIf="!reviewsLoading && reviewsError">
+      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+      <p>{{ reviewsError }}</p>
+      <ion-button fill="outline" size="small" (click)="loadReviews()">Retry</ion-button>
+    </div>
+
+    <ng-container *ngIf="!reviewsLoading && !reviewsError">
+      <div class="review-summary card-lg">
+        <div class="avg">
+          <span class="avg-num">{{ reviewAverage | number: '1.1-1' }}</span>
+          <div class="avg-stars" aria-hidden="true">
+            <span *ngFor="let star of stars" [class.on]="star <= reviewAverage">★</span>
+          </div>
+          <p>
+            {{ reviewTotal }} review{{ reviewTotal === 1 ? '' : 's' }}
+          </p>
+        </div>
+
+        <div class="bars">
+          <div class="bar-row" *ngFor="let star of starRows">
+            <span class="bar-star">{{ star }}★</span>
+            <div class="bar-track">
+              <div class="bar-fill" [style.width.%]="barPercent(star)"></div>
+            </div>
+            <span class="bar-count">{{ reviewCount(star) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-toolbar" *ngIf="reviewTotal > 0">
+        <ion-select
+          class="sort-select"
+          [ngModel]="reviewSort"
+          (ionChange)="changeReviewSort($event.detail.value)"
+          interface="popover"
+          aria-label="Sort reviews"
+        >
+          <ion-select-option *ngFor="let option of reviewSorts" [value]="option.key">
+            {{ option.label }}
+          </ion-select-option>
+        </ion-select>
+      </div>
+
+      <div class="review-empty card-lg" *ngIf="reviewTotal === 0">
+        <ion-icon name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
+        <p>
+          No reviews yet — attended ticket holders can be the first to review this
+          event.
+        </p>
+      </div>
+
+      <article class="review-card" *ngFor="let review of reviews">
+        <header class="review-head">
+          <div class="who">
+            <span class="avatar" aria-hidden="true">{{
+              (review.userName || 'C').charAt(0)
+            }}</span>
+            <div>
+              <h4>{{ review.userName }}</h4>
+              <p>{{ review.createdAt | date: 'mediumDate' }}</p>
+            </div>
+          </div>
+          <div
+            class="review-stars"
+            [attr.aria-label]="review.rating + ' out of 5 stars'"
+          >
+            <span *ngFor="let star of stars" [class.on]="star <= review.rating" aria-hidden="true"
+              >★</span
+            >
+          </div>
+        </header>
+
+        <p class="review-comment" *ngIf="review.comment">{{ review.comment }}</p>
+
+        <span class="verified" *ngIf="review.ticketTier">
+          <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+          Verified · {{ review.ticketTier }}
+        </span>
+
+        <footer class="review-actions">
+          <button
+            type="button"
+            class="helpful"
+            [class.on]="review.userHelpful"
+            [disabled]="helpfulBusy.has(review.id)"
+            [attr.aria-pressed]="review.userHelpful"
+            [attr.aria-label]="
+              'Mark review helpful, ' + review.helpfulCount + ' helpful votes'
+            "
+            (click)="toggleHelpful(review)"
+          >
+            <ion-icon name="thumbs-up-outline" aria-hidden="true"></ion-icon>
+            Helpful · {{ review.helpfulCount }}
+          </button>
+
+          <button
+            type="button"
+            class="report"
+            *ngIf="!isOwnReview(review)"
+            [attr.aria-label]="'Report review by ' + review.userName"
+            (click)="reportReview(review)"
+          >
+            <ion-icon name="flag-outline" aria-hidden="true"></ion-icon>
+            Report
+          </button>
+        </footer>
+      </article>
+
+      <div class="review-empty card-lg" *ngIf="reviewTotal > 0 && reviews.length === 0">
+        <p>No reviews to show right now.</p>
+      </div>
+    </ng-container>
   </section>
 </ion-content>
 

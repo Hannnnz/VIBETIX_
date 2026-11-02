@@ -20,7 +20,13 @@
         <span *ngIf="!c.imageUrl">{{ c.emoji }}</span>
       </div>
       <div class="concert-info">
-        <h3>{{ c.name }}</h3>
+        <div class="title-line">
+          <h3>{{ c.name }}</h3>
+          <span class="event-rating" *ngIf="ratingOf(c) as rating">
+            ★ {{ rating.average | number: '1.1-1' }}
+            <small>({{ rating.total }})</small>
+          </span>
+        </div>
         <p>{{ dateLabel(c.date) }} · {{ c.time }}</p>
         <p class="sub">{{ c.artist }} · {{ c.venue }} ·
           {{ c.price | currency: 'PHP' : 'symbol-narrow' }} base</p>

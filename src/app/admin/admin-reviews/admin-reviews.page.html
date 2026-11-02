@@ -1,0 +1,138 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Reviews</ion-title>
+    <ion-note slot="end" class="tag" *ngIf="stats">
+      {{ stats.openReports }} OPEN
+    </ion-note>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content
+      pullingIcon="chevron-down"
+      pullingText="Pull down to refresh"
+      refreshingSpinner="crescent"
+      refreshingText="Refreshing">
+    </ion-refresher-content>
+  </ion-refresher>
+
+  <div class="filters" role="tablist" aria-label="Filter reviews">
+    <button
+      type="button"
+      class="filter-chip"
+      *ngFor="let option of filters"
+      role="tab"
+      [class.active]="filter === option.key"
+      [attr.aria-selected]="filter === option.key"
+      (click)="setFilter(option.key)"
+    >
+      {{ option.label }}
+    </button>
+  </div>
+
+  <div class="summary-row" *ngIf="stats">
+    <span>Average rating</span>
+    <strong>★ {{ stats.averageRating | number: '1.1-1' }}</strong>
+    <span class="dot">·</span>
+    <span>{{ stats.visibleReviews }} visible</span>
+    <span class="dot">·</span>
+    <span>{{ stats.reportedReviews }} reported</span>
+  </div>
+
+  <section class="panel">
+    <div class="loading" *ngIf="loading">
+      <ion-spinner name="crescent"></ion-spinner>
+      <span>Loading reviews…</span>
+    </div>
+
+    <div class="error-card" *ngIf="!loading && error">
+      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+      <p>{{ error }}</p>
+      <ion-button fill="outline" size="small" (click)="load()">Retry</ion-button>
+    </div>
+
+    <div class="empty" *ngIf="!loading && !error && reviews.length === 0">
+      <ion-icon name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
+      <p>{{ emptyMessage() }}</p>
+    </div>
+
+    <article class="review-card" *ngFor="let review of reviews">
+      <header class="review-head">
+        <div class="event" (click)="openEvent(review)">
+          <h3>{{ review.eventName || 'Event' }}</h3>
+          <p>
+            {{ review.userName }}
+            <span *ngIf="review.userEmail"> · {{ review.userEmail }}</span>
+          </p>
+        </div>
+        <ion-chip
+          class="status-chip"
+          [class.hidden]="review.status === 'hidden'"
+        >
+          {{ review.status === 'hidden' ? 'Hidden' : 'Visible' }}
+        </ion-chip>
+      </header>
+
+      <div class="stars" [attr.aria-label]="review.rating + ' out of 5 stars'">
+        <span *ngFor="let star of stars" [class.on]="star <= review.rating" aria-hidden="true"
+          >★</span
+        >
+        <span class="date">{{ review.createdAt | date: 'mediumDate' }}</span>
+      </div>
+
+      <p class="comment" *ngIf="review.comment">{{ review.comment }}</p>
+      <p class="comment muted" *ngIf="!review.comment">No written comment.</p>
+
+      <div class="meta-row">
+        <span class="verified" *ngIf="review.ticketTier">
+          <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+          Verified · {{ review.ticketTier }}
+        </span>
+        <span class="report-count" *ngIf="review.reportCount > 0">
+          <ion-icon name="flag-outline" aria-hidden="true"></ion-icon>
+          {{ review.reportCount }} open {{ review.reportCount === 1 ? 'report' : 'reports' }}
+        </span>
+      </div>
+
+      <div class="reports" *ngIf="review.reports.length > 0">
+        <p class="reports-title">Reported for</p>
+        <div class="report-row" *ngFor="let report of review.reports">
+          <span class="reason">“{{ report.reason }}”</span>
+          <button
+            type="button"
+            class="dismiss"
+            [attr.aria-label]="'Dismiss report: ' + report.reason"
+            (click)="dismissReport(report)"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button
+          type="button"
+          class="action hide"
+          [disabled]="busyId === review.id"
+          (click)="toggleStatus(review)"
+        >
+          <ion-icon
+            [name]="review.status === 'hidden' ? 'eye-outline' : 'eye-off-outline'"
+            aria-hidden="true"
+          ></ion-icon>
+          {{ review.status === 'hidden' ? 'Unhide' : 'Hide' }}
+        </button>
+        <button
+          type="button"
+          class="action delete"
+          [disabled]="busyId === review.id"
+          (click)="confirmDelete(review)"
+        >
+          <ion-icon name="trash-outline" aria-hidden="true"></ion-icon>
+          Delete
+        </button>
+      </div>
+    </article>
+  </section>
+</ion-content>

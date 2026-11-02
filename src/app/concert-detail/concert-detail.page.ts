@@ -8,10 +8,11 @@ import {
   ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ToastController } from '@ionic/angular/lazy';
+import { AlertController, ToastController } from '@ionic/angular/lazy';
 
 import { Concert, ConcertService } from '../services/concert.service';
 import { AuthService } from '../services/auth.service';
+import { Review, ReviewService, ReviewSort } from '../services/review.service';
 import { SupabaseService } from '../services/supabase.service';
 import { runRefresh } from '../utils/refresher';
 
@@ -270,6 +271,24 @@ export class ConcertDetailPage implements OnInit, OnDestroy {
   tooltipX = 0;
   tooltipY = 0;
 
+  // ── Reviews ──────────────────────────────────────────────────────
+  readonly stars = [1, 2, 3, 4, 5];
+  readonly starRows = [5, 4, 3, 2, 1];
+  readonly reviewSorts: { key: ReviewSort; label: string }[] = [
+    { key: 'newest', label: 'Newest' },
+    { key: 'highest', label: 'Highest rated' },
+    { key: 'lowest', label: 'Lowest rated' },
+    { key: 'helpful', label: 'Most helpful' },
+  ];
+  reviews: Review[] = [];
+  reviewAverage = 0;
+  reviewTotal = 0;
+  reviewCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  reviewsLoading = false;
+  reviewsError = '';
+  reviewSort: ReviewSort = 'newest';
+  readonly helpfulBusy = new Set<string>();
+
   @ViewChild('seatPanel') private seatPanel?: ElementRef<HTMLElement>;
 
   private tooltipTimer?: ReturnType<typeof setTimeout>;
@@ -279,10 +298,12 @@ export class ConcertDetailPage implements OnInit, OnDestroy {
     private router: Router,
     private concertService: ConcertService,
     public auth: AuthService,
+    private reviewService: ReviewService,
     private sb: SupabaseService,
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private alertCtrl: AlertController
   ) {}
 
   ngOnInit(): void {
@@ -334,7 +355,7 @@ export class ConcertDetailPage implements OnInit, OnDestroy {
       }
     });
     if (this.concert) {
-      await this.loadTakenSeats();
+      await Promise.all([this.loadTakenSeats(), this.loadReviews()]);
     }
     this.cdr.detectChanges();
   }
@@ -371,6 +392,137 @@ export class ConcertDetailPage implements OnInit, OnDestroy {
       .split('\n')
       .map((r) => r.trim())
       .filter((r) => r.length > 0);
+  }
+
+  // ── Reviews ──────────────────────────────────────────────────────
+
+  async loadReviews(): Promise<void> {
+    if (!this.concert) {
+      return;
+    }
+    this.reviewsLoading = true;
+    this.reviewsError = '';
+    this.cdr.detectChanges();
+    try {
+      const summary = await this.reviewService.forEvent(
+        this.concert.id,
+        this.reviewSort
+      );
+      this.zone.run(() => {
+        this.reviews = summary.reviews;
+        this.reviewAverage = summary.average;
+        this.reviewTotal = summary.total;
+        this.reviewCounts = summary.counts;
+        this.cdr.detectChanges();
+      });
+    } catch (error) {
+      this.zone.run(() => {
+        this.reviews = [];
+        this.reviewAverage = 0;
+        this.reviewTotal = 0;
+        this.reviewCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        this.reviewsError =
+          (error as Error)?.message ?? 'Could not load reviews right now.';
+        this.cdr.detectChanges();
+      });
+    } finally {
+      this.reviewsLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  changeReviewSort(value: ReviewSort): void {
+    if (this.reviewSort === value) {
+      return;
+    }
+    this.reviewSort = value;
+    void this.loadReviews();
+  }
+
+  reviewCount(star: number): number {
+    return this.reviewCounts[star] ?? 0;
+  }
+
+  barPercent(star: number): number {
+    if (!this.reviewTotal) {
+      return 0;
+    }
+    return Math.round((this.reviewCount(star) / this.reviewTotal) * 100);
+  }
+
+  isOwnReview(review: Review): boolean {
+    const userId = this.auth.getUserId();
+    return !!userId && userId === review.userId;
+  }
+
+  async toggleHelpful(review: Review): Promise<void> {
+    if (this.helpfulBusy.has(review.id)) {
+      return;
+    }
+    this.helpfulBusy.add(review.id);
+    this.cdr.detectChanges();
+    try {
+      const result = await this.reviewService.toggleHelpful(review.id);
+      this.zone.run(() => {
+        review.helpfulCount = result.count;
+        review.userHelpful = result.helpful;
+        this.cdr.detectChanges();
+      });
+    } catch (error) {
+      void this.toast(
+        (error as Error)?.message ?? 'Could not update that vote.',
+        'warning'
+      );
+    } finally {
+      this.helpfulBusy.delete(review.id);
+      this.cdr.detectChanges();
+    }
+  }
+
+  async reportReview(review: Review): Promise<void> {
+    const reasons = [
+      'Spam or advertising',
+      'Offensive language',
+      'Harassment or hate',
+      'Not about this event',
+      'Other',
+    ];
+    const alert = await this.alertCtrl.create({
+      header: 'Report review',
+      message: 'Why are you reporting this review?',
+      inputs: reasons.map((reason, index) => ({
+        type: 'radio' as const,
+        label: reason,
+        value: reason,
+        checked: index === 0,
+      })),
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Report',
+          handler: (value: string) => {
+            if (!value) {
+              return false;
+            }
+            void this.submitReport(review, value);
+            return true;
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  private async submitReport(review: Review, reason: string): Promise<void> {
+    try {
+      await this.reviewService.report(review.id, reason);
+      void this.toast('Report sent — our team will review it.', 'dark');
+    } catch (error) {
+      void this.toast(
+        (error as Error)?.message ?? 'Could not send that report.',
+        'warning'
+      );
+    }
   }
 
   // ── Ticket type ↔ map group ──────────────────────────────────────

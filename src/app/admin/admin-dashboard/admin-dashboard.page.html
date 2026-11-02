@@ -33,6 +33,12 @@
       </span>
       <span class="lbl">Revenue</span>
     </div>
+    <div class="stat">
+      <span class="num rating">
+        {{ reviewStats ? (reviewStats.averageRating | number: '1.1-1') : '—' }}
+      </span>
+      <span class="lbl">Avg rating</span>
+    </div>
   </div>
 
   <div class="card-lg" *ngIf="nextShow()">
@@ -70,5 +76,41 @@
       <span class="name">{{ b.customerName }} · {{ concertOf(b)?.name }}</span>
       <span class="amt">{{ b.total | currency: 'PHP' : 'symbol-narrow' }}</span>
     </div>
+  </section>
+
+  <div class="mod-head">
+    <p class="section-label">Needs moderation</p>
+    <button type="button" class="mod-link" (click)="goReviews()">
+      Open Reviews
+      <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+    </button>
+  </div>
+
+  <section class="moderation">
+    <button
+      type="button"
+      class="mod-row"
+      *ngFor="let review of moderation"
+      (click)="goReviews()"
+      [attr.aria-label]="
+        'Moderate ' + review.rating + ' star review for ' + review.eventName
+      "
+    >
+      <div class="mod-main">
+        <span class="mod-event">{{ review.eventName }}</span>
+        <span class="mod-meta">
+          {{ review.userName }} · {{ review.reportCount }} open
+          {{ review.reportCount === 1 ? 'report' : 'reports' }}
+        </span>
+        <span class="mod-reason" *ngIf="review.reports.length > 0">
+          “{{ review.reports[0].reason }}”
+        </span>
+      </div>
+      <span class="mod-stars">★ {{ review.rating }}</span>
+    </button>
+
+    <p class="mod-empty" *ngIf="moderation.length === 0">
+      No open reports — the review queue is clear.
+    </p>
   </section>
 </ion-content>

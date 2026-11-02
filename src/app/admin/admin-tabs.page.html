@@ -15,6 +15,14 @@
       <ion-label>Bookings</ion-label>
     </ion-tab-button>
 
+    <ion-tab-button tab="reviews" href="/admin/reviews">
+      <ion-icon name="star-outline" aria-hidden="true"></ion-icon>
+      <ion-label>Reviews</ion-label>
+      <ion-badge *ngIf="reportedReviews > 0" aria-label="Reported reviews">
+        {{ reportedReviews > 99 ? '99+' : reportedReviews }}
+      </ion-badge>
+    </ion-tab-button>
+
     <ion-tab-button tab="account" href="/admin/account">
       <ion-icon name="person-circle-outline" aria-hidden="true"></ion-icon>
       <ion-label>Account</ion-label>

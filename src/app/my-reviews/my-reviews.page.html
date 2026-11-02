@@ -1,0 +1,98 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/account"></ion-back-button>
+    </ion-buttons>
+    <ion-title>My Reviews</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content
+      pullingIcon="chevron-down"
+      pullingText="Pull down to refresh"
+      refreshingSpinner="crescent"
+      refreshingText="Refreshing">
+    </ion-refresher-content>
+  </ion-refresher>
+
+  <section class="panel">
+    <div class="loading" *ngIf="loading">
+      <ion-spinner name="crescent"></ion-spinner>
+      <span>Loading your reviews…</span>
+    </div>
+
+    <div class="error-card" *ngIf="!loading && error">
+      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+      <p>{{ error }}</p>
+      <ion-button fill="outline" size="small" (click)="load()">Retry</ion-button>
+    </div>
+
+    <div class="empty" *ngIf="!loading && !error && reviews.length === 0">
+      <ion-icon name="star-outline" aria-hidden="true"></ion-icon>
+      <h3>No reviews yet</h3>
+      <p>Attend a show, then review it from your attended ticket.</p>
+      <ion-button (click)="goTickets()">Go to my tickets</ion-button>
+    </div>
+
+    <article class="my-review" *ngFor="let review of reviews">
+      <div class="top">
+        <div class="event" (click)="openEvent(review)">
+          <h3>{{ review.eventName || 'Event' }}</h3>
+          <p>{{ review.createdAt | date: 'mediumDate' }}</p>
+        </div>
+        <ion-chip class="status-chip" [class.hidden]="review.status === 'hidden'">
+          {{ review.status === 'hidden' ? 'Hidden' : 'Visible' }}
+        </ion-chip>
+      </div>
+
+      <div
+        class="stars"
+        [attr.aria-label]="review.rating + ' out of 5 stars'"
+      >
+        <span *ngFor="let star of stars" [class.on]="star <= review.rating" aria-hidden="true"
+          >★</span
+        >
+      </div>
+
+      <p class="comment" *ngIf="review.comment">{{ review.comment }}</p>
+
+      <div class="verified-row">
+        <span class="verified" *ngIf="review.ticketTier">
+          <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+          Verified · {{ review.ticketTier }}
+        </span>
+        <span class="helpful-count">
+          <ion-icon name="thumbs-up-outline" aria-hidden="true"></ion-icon>
+          {{ review.helpfulCount }} helpful
+        </span>
+      </div>
+
+      <p class="hidden-note" *ngIf="review.status === 'hidden'">
+        This review is hidden from the public — only you and admins can see it.
+      </p>
+
+      <div class="actions">
+        <button type="button" class="edit" (click)="edit(review)">
+          <ion-icon name="create-outline" aria-hidden="true"></ion-icon>
+          Edit review
+        </button>
+        <button type="button" class="delete" (click)="confirmDelete(review)">
+          <ion-icon name="trash-outline" aria-hidden="true"></ion-icon>
+          Delete
+        </button>
+      </div>
+    </article>
+  </section>
+</ion-content>
+
+<app-review-form
+  *ngIf="editing"
+  [eventId]="editing.eventId"
+  [ticketId]="editing.ticketId"
+  [review]="editing"
+  (saved)="onSaved($event)"
+  (deleted)="onDeleted($event)"
+  (closed)="closeEditor()"
+></app-review-form>

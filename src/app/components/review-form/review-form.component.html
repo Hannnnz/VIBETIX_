@@ -1,0 +1,79 @@
+<div class="sheet-backdrop" (click)="close()" aria-hidden="true"></div>
+
+<section
+  class="sheet"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="isEdit ? 'Edit your review' : 'Write a review'"
+  (click)="$event.stopPropagation()"
+>
+  <header class="sheet-head">
+    <div>
+      <h2>{{ isEdit ? 'Edit your review' : 'Write a review' }}</h2>
+      <p>Your ticket is verified · reviews are public</p>
+    </div>
+    <button
+      type="button"
+      class="icon-btn"
+      aria-label="Close review form"
+      (click)="close()"
+    >
+      &times;
+    </button>
+  </header>
+
+  <div class="sheet-body">
+    <p class="field-label" id="rating-label">Your rating</p>
+    <div class="star-row" role="radiogroup" aria-labelledby="rating-label">
+      <button
+        type="button"
+        class="star"
+        *ngFor="let star of stars"
+        role="radio"
+        [attr.aria-checked]="rating === star"
+        [attr.aria-label]="star + (star === 1 ? ' star' : ' stars')"
+        [class.on]="star <= rating"
+        (click)="setRating(star)"
+      >★</button>
+    </div>
+
+    <label class="field-label" for="review-comment">Your review</label>
+    <textarea
+      id="review-comment"
+      class="comment"
+      rows="4"
+      [maxlength]="maxComment"
+      [(ngModel)]="comment"
+      placeholder="What stood out? Sound, view, crowd, venue…"
+      aria-label="Review comment"
+    ></textarea>
+    <p class="counter" [class.over]="comment.length > maxComment">
+      {{ comment.length }}/{{ maxComment }}
+    </p>
+
+    <p class="form-error" *ngIf="error" role="alert">{{ error }}</p>
+
+    <button
+      type="button"
+      class="submit"
+      [disabled]="saving || deleting || rating < 1"
+      (click)="submit()"
+    >
+      {{ saving ? 'Saving…' : isEdit ? 'Save changes' : 'Submit review' }}
+    </button>
+
+    <button
+      type="button"
+      class="delete"
+      *ngIf="isEdit"
+      [disabled]="saving || deleting"
+      (click)="confirmDelete()"
+    >
+      {{ deleting ? 'Deleting…' : 'Delete review' }}
+    </button>
+
+    <button type="button" class="cancel" [disabled]="saving || deleting" (click)="close()">
+      Cancel
+    </button>
+  </div>
+</section>

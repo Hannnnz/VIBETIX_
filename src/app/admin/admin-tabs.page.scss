@@ -5,6 +5,7 @@ ion-tab-bar {
 
 ion-tab-button {
   --color: var(--ion-color-step-400, #7a7a7a);
+  position: relative;
   transition: transform 0.15s ease;
 
   &.tab-selected {
@@ -18,5 +19,21 @@ ion-tab-button {
 
   ion-icon {
     transition: transform 0.2s ease, filter 0.2s ease;
+  }
+
+  ion-badge {
+    position: absolute;
+    top: 2px;
+    left: calc(50% + 5px);
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--app-red);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 17px;
+    box-shadow: 0 0 0 2px rgba(12, 12, 12, 0.95);
   }
 }

@@ -1,9 +1,11 @@
 import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
+import { ToastController } from '@ionic/angular/lazy';
 import { Subscription } from 'rxjs';
 import { Booking, BookingService } from '../services/booking.service';
 import { Session, AuthService } from '../services/auth.service';
 import { Concert, ConcertService } from '../services/concert.service';
+import { Review, ReviewService } from '../services/review.service';
 import { eventDateTime, countdownString } from '../utils/countdown';
 import { runRefresh } from '../utils/refresher';
 
@@ -18,17 +20,27 @@ export class MyTicketsPage {
   bookings: Booking[] = [];
   search = '';
   now = Date.now();
+
+  myReviews: Review[] = [];
+  reviewsError = '';
+  reviewSheetOpen = false;
+  reviewBooking: Booking | null = null;
+  reviewForBooking: Review | null = null;
+
   private ticker?: ReturnType<typeof setInterval>;
   private bookingChangesSub?: Subscription;
   private concertChangesSub?: Subscription;
+  private reviewChangesSub?: Subscription;
 
   constructor(
     private bookingService: BookingService,
     private concertService: ConcertService,
     private auth: AuthService,
+    private reviewService: ReviewService,
     private router: Router,
     private zone: NgZone,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private toastCtrl: ToastController
   ) {}
   async ionViewWillEnter(): Promise<void> {
     // Paint whatever the login/splash warm-up already cached, then refresh.
@@ -57,6 +69,13 @@ export class MyTicketsPage {
         this.cdr.detectChanges();
       });
     });
+
+    // Keep the ★ rating on attended tickets in sync with edits/reports.
+    this.reviewChangesSub?.unsubscribe();
+    this.reviewChangesSub = this.reviewService.changes$.subscribe(() => {
+      this.zone.run(() => void this.loadMyReviews());
+    });
+    void this.loadMyReviews();
 
     // LIVE bookings from Supabase, then render
     try {
@@ -107,6 +126,7 @@ export class MyTicketsPage {
     }
     this.bookingChangesSub?.unsubscribe();
     this.concertChangesSub?.unsubscribe();
+    this.reviewChangesSub?.unsubscribe();
   }
 
   /** Pull-down-to-refresh refetches tickets straight from Supabase. */
@@ -121,6 +141,7 @@ export class MyTicketsPage {
       await Promise.all([
         this.bookingService.hydrate(),
         this.concertService.hydrate(),
+        this.loadMyReviews(),
       ]).catch(() => undefined);
       this.zone.run(() => {
         this.refreshBookingsList(email);
@@ -195,6 +216,98 @@ export class MyTicketsPage {
       /* ignore */
     }
     this.router.navigate(['/ticket', b.ticketCode], { state: { booking: b } });
+  }
+
+  // ── Reviews ──────────────────────────────────────────────────────
+
+  /** ATTENDED = the ticket was scanned at the gate and belongs to me. */
+  canReview(booking: Booking): boolean {
+    return (
+      booking.status === 'checked-in' &&
+      !!this.auth.getUserId() &&
+      booking.customerId === this.auth.getUserId()
+    );
+  }
+
+  reviewOf(booking: Booking): Review | undefined {
+    return this.myReviews.find((review) => review.eventId === booking.concertId);
+  }
+
+  openReview(booking: Booking): void {
+    if (!this.canReview(booking)) {
+      return;
+    }
+    this.reviewBooking = booking;
+    this.reviewForBooking = this.reviewOf(booking) ?? null;
+    this.reviewSheetOpen = true;
+    this.cdr.detectChanges();
+  }
+
+  closeReview(): void {
+    this.reviewSheetOpen = false;
+    this.reviewBooking = null;
+    this.reviewForBooking = null;
+    this.cdr.detectChanges();
+  }
+
+  onReviewSaved(review: Review): void {
+    const wasEdit = !!this.reviewForBooking;
+    this.upsertReview(review);
+    this.closeReview();
+    void this.toast(wasEdit ? 'Review updated.' : 'Thanks — your review is live.');
+    void this.loadMyReviews();
+  }
+
+  onReviewDeleted(reviewId: string): void {
+    this.myReviews = this.myReviews.filter((review) => review.id !== reviewId);
+    this.closeReview();
+    void this.toast('Review deleted.');
+    void this.loadMyReviews();
+  }
+
+  private upsertReview(review: Review): void {
+    const existing = this.myReviews.find((item) => item.id === review.id);
+    if (!existing) {
+      this.myReviews = [review, ...this.myReviews];
+      return;
+    }
+    this.myReviews = this.myReviews.map((item) =>
+      item.id === review.id
+        ? {
+            ...item,
+            ...review,
+            eventName: review.eventName || item.eventName,
+            ticketTier: review.ticketTier || item.ticketTier,
+            userName: review.userName || item.userName,
+          }
+        : item
+    );
+  }
+
+  async loadMyReviews(): Promise<void> {
+    try {
+      const reviews = await this.reviewService.myReviews();
+      this.zone.run(() => {
+        this.myReviews = reviews;
+        this.reviewsError = '';
+        this.cdr.detectChanges();
+      });
+    } catch (error) {
+      this.zone.run(() => {
+        this.reviewsError =
+          (error as Error)?.message ?? 'Could not load your reviews.';
+        this.cdr.detectChanges();
+      });
+    }
+  }
+
+  private async toast(message: string): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 1800,
+      color: 'dark',
+    });
+    await toast.present();
   }
 
   goExplore(): void {

@@ -152,6 +152,10 @@ export class AccountPage implements OnInit {
     this.router.navigate(['/tabs/payment-methods']);
   }
 
+  openMyReviews(): void {
+    this.router.navigate(['/tabs/my-reviews']);
+  }
+
   joinCompany(): void {
     this.router.navigate(['/staff/join']);
   }

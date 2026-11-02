@@ -90,6 +90,16 @@
     </div>
   </ion-list>
 
+  <!-- Customer: reviews -->
+  <ion-list inset lines="full" class="info-list" *ngIf="isCustomer">
+    <p class="pm-title with-pad">Reviews</p>
+    <ion-item button detail (click)="openMyReviews()">
+      <ion-icon slot="start" name="star-outline"></ion-icon>
+      <ion-label>My Reviews</ion-label>
+      <ion-note slot="end">Edit or delete</ion-note>
+    </ion-item>
+  </ion-list>
+
   <!-- Customer: payment methods -->
   <ion-list inset lines="full" class="pm-list" *ngIf="isCustomer">
     <div class="pm-head">
@@ -122,7 +132,7 @@
     <ion-item>
       <ion-icon slot="start" name="information-circle-outline"></ion-icon>
       <ion-label>App version</ion-label>
-      <ion-note slot="end">1.9.0</ion-note>
+      <ion-note slot="end">2.1</ion-note>
     </ion-item>
     <ion-item>
       <ion-icon slot="start" name="musical-notes-outline"></ion-icon>
