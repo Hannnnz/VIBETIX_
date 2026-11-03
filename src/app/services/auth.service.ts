@@ -386,19 +386,53 @@ export class AuthService {
       }));
   }
 
+  /** Last error from addStaff, for the UI to surface. */
+  lastAddStaffError = '';
+
   /** Admin onboards a staff account via edge function; password shown once. */
   async addStaff(
     name: string,
     email: string
   ): Promise<{ email: string; password: string } | null> {
+    this.lastAddStaffError = '';
     const { data, error } = await this.client.functions.invoke('create-staff', {
       body: { name, email },
     });
-    if (error || !data || (data as { error?: string }).error) {
+
+    if (error) {
+      this.lastAddStaffError = await this.parseFunctionError(error);
       return null;
     }
-    const payload = data as { email: string; password: string };
-    return payload;
+    if (!data) {
+      this.lastAddStaffError = 'No response from the create-staff function.';
+      return null;
+    }
+    const payload = data as { email?: string; password?: string; error?: string };
+    if (payload.error) {
+      this.lastAddStaffError = payload.error;
+      return null;
+    }
+    if (!payload.email || !payload.password) {
+      this.lastAddStaffError = 'The create-staff function returned an invalid response.';
+      return null;
+    }
+    return { email: payload.email, password: payload.password };
+  }
+
+  /** Extracts the real error message from a FunctionsHttpError. */
+  private async parseFunctionError(error: unknown): Promise<string> {
+    const e = error as { message?: string; context?: Response | { json?: () => Promise<unknown> } };
+    try {
+      const ctx = e?.context as Response | undefined;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = (await ctx.json()) as { error?: string; message?: string };
+        if (body?.error) return body.error;
+        if (body?.message) return body.message;
+      }
+    } catch {
+      /* fall through to the generic message */
+    }
+    return e?.message ?? 'Could not create the staff account.';
   }
 
   /** Non-null error text after addStaff failed — surface in the UI. */

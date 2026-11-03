@@ -15,9 +15,14 @@
     letter-spacing: 7px;
     color: #ffffff;
     text-shadow:
-      0 0 26px rgba(229, 9, 20, 0.45),
+      0 0 18px rgba(229, 9, 20, 0.28),
       0 2px 0 rgba(255, 255, 255, 0.08);
-    animation: breathe 5s ease-in-out infinite;
+    opacity: 0;
+    transform: translateY(12px);
+    animation:
+      wordmarkIn 0.7s ease-out forwards,
+      redGlow 3.6s ease-in-out 0.7s infinite;
+    will-change: transform, opacity, text-shadow;
   }
 
   p {
@@ -45,10 +50,11 @@
 .login-hero .note {
   position: absolute;
   font-size: 20px;
-  opacity: 0.35;
+  opacity: 0.22;
   filter: grayscale(0.6);
-  animation: floaty 6s ease-in-out infinite;
+  animation: noteDrift 10s ease-in-out infinite;
   pointer-events: none;
+  will-change: transform, opacity;
 
   &.n1 { top: 44px; left: 12%; animation-delay: 0s; }
   &.n2 { top: 90px; right: 10%; animation-delay: 0.9s; }
@@ -157,4 +163,54 @@
   text-align: center;
   font-size: 13px;
   color: var(--ion-color-step-300, #9a9a9a);
+}
+
+@keyframes wordmarkIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes redGlow {
+  0%,
+  100% {
+    text-shadow:
+      0 0 18px rgba(229, 9, 20, 0.28),
+      0 2px 0 rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    text-shadow:
+      0 0 34px rgba(229, 9, 20, 0.55),
+      0 2px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+@keyframes noteDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.22;
+  }
+  50% {
+    transform: translate3d(6px, -10px, 0);
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-hero .neon,
+  .login-hero p,
+  .login-hero .note,
+  .form-wrap,
+  .quick-accounts,
+  .login-btn {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
 }

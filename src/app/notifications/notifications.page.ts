@@ -176,7 +176,4 @@ export class NotificationsPage implements OnInit, OnDestroy {
     await alert.present();
   }
 
-  openTickets(): void {
-    void this.router.navigateByUrl('/tabs/my-tickets');
-  }
 }

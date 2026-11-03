@@ -369,46 +369,68 @@ export class NotificationService {
   /** Marks read, then opens the screen the notification points at. */
   async open(notification: AppNotification): Promise<void> {
     await this.markRead(notification.id);
+    const role = this.auth.getSession()?.role;
     const data = notification.data;
 
     if (notification.type === 'new_booking') {
-      await this.router.navigate(['/admin/bookings'], {
-        queryParams: data.ticket_code ? { q: data.ticket_code } : {},
-      });
+      if (role === 'admin') {
+        await this.router.navigate(['/admin/bookings'], {
+          queryParams: data.ticket_code ? { q: data.ticket_code } : {},
+        });
+        return;
+      }
+      await this.router.navigateByUrl(this.auth.roleHome);
       return;
     }
 
     const code = data.ticket_code;
-    if (code) {
-      await this.router.navigate(['/ticket', code]);
+
+    // Customers (ticket holders) open the ticket detail / their ticket list.
+    if (role === 'customer') {
+      if (code) {
+        await this.router.navigate(['/ticket', code]);
+        return;
+      }
+      const bookingId = data.ticket_id ?? data.booking_id;
+      if (bookingId) {
+        try {
+          const { data: row } = await this.client
+            .from('bookings')
+            .select('ticket_code')
+            .eq('id', bookingId)
+            .single();
+          const resolved = (row as { ticket_code?: string } | null)?.ticket_code;
+          if (resolved) {
+            await this.router.navigate(['/ticket', resolved]);
+            return;
+          }
+        } catch {
+          /* fall through */
+        }
+      }
+      await this.router.navigateByUrl('/tabs/my-tickets');
       return;
     }
 
-    // Older rows may only carry the booking id — resolve the code.
-    const bookingId = data.ticket_id ?? data.booking_id;
-    if (bookingId) {
-      try {
-        const { data: row } = await this.client
-          .from('bookings')
-          .select('ticket_code')
-          .eq('id', bookingId)
-          .single();
-        const resolved = (row as { ticket_code?: string } | null)?.ticket_code;
-        if (resolved) {
-          await this.router.navigate(['/ticket', resolved]);
-          return;
-        }
-      } catch {
-        /* fall through */
-      }
+    // Admins go to Bookings; staff go to their own area — never a customer route.
+    if (role === 'admin') {
+      await this.router.navigate(['/admin/bookings'], {
+        queryParams: code ? { q: code } : {},
+      });
+      return;
     }
-    await this.router.navigateByUrl('/tabs/my-tickets');
+    await this.router.navigateByUrl(this.auth.roleHome);
   }
 
   /** "Leave a review" action for checked-in notifications. */
   async openReview(notification: AppNotification): Promise<void> {
     await this.markRead(notification.id);
+    const role = this.auth.getSession()?.role;
     const ticketId = notification.data.ticket_id ?? notification.data.booking_id;
+    if (role !== 'customer') {
+      await this.router.navigateByUrl(this.auth.roleHome);
+      return;
+    }
     await this.router.navigate(['/tabs/my-tickets'], {
       queryParams: ticketId ? { review: ticketId } : {},
     });

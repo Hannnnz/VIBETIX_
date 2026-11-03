@@ -123,7 +123,8 @@ export class TeamPage implements OnInit {
 
     if (!created) {
       this.toast(
-        'Could not create the staff account — deploy the "create-staff" function (see supabase/README.md) or use a signed-up account.'
+        this.auth.lastAddStaffError ||
+          'Could not create the staff account — deploy the "create-staff" function (see supabase/README.md) or use a signed-up account.'
       );
       return;
     }

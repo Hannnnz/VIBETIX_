@@ -27,6 +27,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader) {
+      return json({ error: 'You must be signed in as an admin.' }, 401);
+    }
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -34,12 +37,19 @@ Deno.serve(async (req: Request) => {
     );
 
     // Only real admins may do this.
-    const { data: me } = await admin
+    const {
+      data: { user },
+      error: userError,
+    } = await admin.auth.getUser();
+    if (userError || !user) {
+      return json({ error: 'You must be signed in as an admin.' }, 401);
+    }
+    const { data: me, error: profileError } = await admin
       .from('profiles')
       .select('role')
-      .eq('id', (await admin.auth.getUser()).data.user?.id ?? '')
+      .eq('id', user.id)
       .single();
-    if (me?.role !== 'admin') {
+    if (profileError || me?.role !== 'admin') {
       return json({ error: 'Only admins can create staff.' }, 403);
     }
 
@@ -63,7 +73,11 @@ Deno.serve(async (req: Request) => {
       user_metadata: { full_name: String(name).trim(), role: 'staff' },
     });
     if (error) {
-      return json({ error: error.message }, 400);
+      const msg = error.message ?? '';
+      if (/already.*registered|already exists|duplicate/i.test(msg)) {
+        return json({ error: 'That email is already registered.' }, 409);
+      }
+      return json({ error: msg || 'Could not create the staff account.' }, 400);
     }
 
     // Guarantee profile row exists with role=staff & joined (trigger usually did it)

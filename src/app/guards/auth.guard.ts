@@ -37,3 +37,21 @@ export const roleGuard =
     router.navigate([auth.roleHome], { replaceUrl: true });
     return false;
   };
+
+/** Customer area only: admins/staff are redirected to their own area. */
+export const customerGuard: CanActivateFn = async () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  await auth.ensureSession();
+  const session = auth.getSession();
+  if (!session) {
+    router.navigate(['/login'], { replaceUrl: true });
+    return false;
+  }
+  if (session.role !== 'customer') {
+    router.navigate([auth.roleHome], { replaceUrl: true });
+    return false;
+  }
+  return true;
+};

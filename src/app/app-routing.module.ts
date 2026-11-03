@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
-import { authGuard, roleGuard } from './guards/auth.guard';
+import { authGuard, customerGuard, roleGuard } from './guards/auth.guard';
 
 const routes: Routes = [
   {
@@ -28,7 +28,7 @@ const routes: Routes = [
   // Customer area (tabbed). Customer example: user@gmail.com
   {
     path: 'tabs',
-    canActivate: [authGuard],
+    canActivate: [customerGuard],
     loadChildren: () => import('./tabs/tabs.module').then((m) => m.TabsPageModule),
   },
   {
