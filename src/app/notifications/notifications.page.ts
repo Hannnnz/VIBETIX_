@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController } from '@ionic/angular/lazy';
 import { Subscription } from 'rxjs';
@@ -18,7 +18,7 @@ import { runRefresh } from '../utils/refresher';
   styleUrls: ['./notifications.page.scss'],
   standalone: false,
 })
-export class NotificationsPage implements OnDestroy {
+export class NotificationsPage implements OnInit, OnDestroy {
   items: AppNotification[] = [];
   loading = true;
   error = '';
@@ -37,42 +37,65 @@ export class NotificationsPage implements OnDestroy {
     public auth: AuthService,
     private notifications: NotificationService,
     private alertCtrl: AlertController,
-    private router: Router
-  ) {}
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {
+  }
 
   get backHref(): string {
     return this.auth.roleHome;
   }
 
-  ionViewWillEnter(): void {
-    if (!this.subscribed) {
-      this.subscribed = true;
-      this.subs.add(
-        this.notifications.items$.subscribe((items) => {
-          this.items = items;
-        })
-      );
-      this.subs.add(
-        this.notifications.unread$.subscribe((count) => {
-          this.unread = count;
-        })
-      );
-      this.subs.add(
-        this.notifications.loading$.subscribe((loading) => {
-          this.loading = loading;
-        })
-      );
-      this.subs.add(
-        this.notifications.error$.subscribe((error) => {
-          this.error = error;
-        })
-      );
+  async ngOnInit(): Promise<void> {
+    await this.auth.ensureSession();
+    try {
+      this.subs.unsubscribe();
+    } catch {
+      /* already unsubscribed */
     }
+    this.subs = new Subscription();
+    this.subscribed = true;
+    this.subs.add(
+      this.notifications.items$.subscribe((items) => {
+        this.items = items;
+        this.cdr.detectChanges();
+      })
+    );
+    this.subs.add(
+      this.notifications.unread$.subscribe((count) => {
+        this.unread = count;
+      })
+    );
+    this.subs.add(
+      this.notifications.loading$.subscribe((loading) => {
+        this.loading = loading;
+        this.cdr.detectChanges();
+      })
+    );
+    this.subs.add(
+      this.notifications.error$.subscribe((error) => {
+        this.error = error;
+      })
+    );
     void this.notifications.refresh();
   }
 
+  ionViewWillLeave(): void {
+    try {
+      this.subs.unsubscribe();
+    } catch {
+      /* ignore */
+    }
+    this.subs = new Subscription();
+    this.subscribed = false;
+  }
+
   ngOnDestroy(): void {
-    this.subs.unsubscribe();
+    try {
+      this.subs.unsubscribe();
+    } catch {
+      /* ignore */
+    }
   }
 
   async doRefresh(event: Event): Promise<void> {

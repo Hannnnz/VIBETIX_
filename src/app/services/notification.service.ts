@@ -225,6 +225,8 @@ export class NotificationService {
 
   async refresh(): Promise<void> {
     if (!this.userId) {
+      // Auth profile not ready yet — never leave the spinner stuck.
+      this.zone.run(() => this.loadingSubject.next(false));
       return;
     }
     this.loadingSubject.next(true);
