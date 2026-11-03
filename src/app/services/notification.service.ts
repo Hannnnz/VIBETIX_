@@ -230,13 +230,19 @@ export class NotificationService {
     this.loadingSubject.next(true);
     this.errorSubject.next('');
     try {
-      const { data, error } = await this.client
+      const query = this.client
         .from('notifications')
         .select('id, user_id, type, title, body, data, read_at, created_at')
         .eq('user_id', this.userId)
         .order('created_at', { ascending: false })
         .limit(100);
-
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Timed out loading notifications.')), 10000);
+      });
+      const { data, error } = await Promise.race([
+        query as unknown as Promise<{ data: unknown; error: unknown }>,
+        timeout,
+      ]);
       if (error) {
         throw error;
       }
@@ -244,7 +250,6 @@ export class NotificationService {
       this.zone.run(() => {
         this.items.next(rows.map((r) => this.map(r)));
         this.recount();
-        this.loadingSubject.next(false);
       });
     } catch (error) {
       this.zone.run(() => {
@@ -252,6 +257,9 @@ export class NotificationService {
           (error as { message?: string })?.message ??
             'Could not load notifications.'
         );
+      });
+    } finally {
+      this.zone.run(() => {
         this.loadingSubject.next(false);
       });
     }
