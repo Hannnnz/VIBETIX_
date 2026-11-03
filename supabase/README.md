@@ -44,6 +44,26 @@ The app is now backed by a real database. Project: `https://vtocnpgguwggpgvvylzn
    Until deployed, "Add staff" shows a toast explaining this. Removed-staff
    blocklists and join codes already work without it.
 
+## Notifications & push
+
+Server-created in-app notifications + Android push. Full runbook:
+**[`NOTIFICATIONS.md`](../NOTIFICATIONS.md)**.
+
+1. SQL Editor → `supabase/notifications.sql` → Run
+   (table, RLS, booking/check-in triggers, hourly `pg_cron` reminder,
+   `concerts.timezone` default `Asia/Manila`, realtime).
+2. SQL Editor → `supabase/device-tokens.sql` → Run (owner-only FCM tokens).
+3. Optional: `supabase/notifications-tests.sql` (runs in a transaction and
+   rolls back — prints `ALL TESTS PASSED`).
+4. Put `google-services.json` at `android/app/google-services.json`.
+5. `supabase secrets set FIREBASE_SERVICE_ACCOUNT=... WEBHOOK_SECRET=...`
+6. `supabase functions deploy send-push --project-ref vtocnpgguwggpgvvylzn --no-verify-jwt`
+7. Dashboard → Database → Webhooks → `public.notifications`, `INSERT` →
+   Edge Function `send-push` with header `x-webhook-secret`.
+
+Notifications are written only by SECURITY DEFINER triggers; clients have
+`select`, `delete` and column-level `update (read_at)` on their own rows.
+
 ## What lives where
 
 | Concern | File | Notes |
@@ -51,6 +71,10 @@ The app is now backed by a real database. Project: `https://vtocnpgguwggpgvvylzn
 | Full schema + RLS | `supabase/schema.sql` | 12 tables, security policies |
 | Patch: RPCs + policy ensure | `supabase/patch.sql` | `place_booking`, `check_in_ticket` |
 | Patch: checked-in fix | `supabase/fix-checkins.sql` | `checked_in_at`, `get_all_check_ins` |
+| Notifications | `supabase/notifications.sql` | inbox table, triggers, cron reminder |
+| Device tokens | `supabase/device-tokens.sql` | FCM tokens, owner-only RLS |
+| Notification tests | `supabase/notifications-tests.sql` | 4 scenarios, auto-rollback |
+| Edge function (push via FCM v1) | `supabase/functions/send-push/` | service account from secrets |
 | Edge function (server-side admin ops) | `supabase/functions/create-staff/` | uses service_role, never the app |
 | Secrets | `supabase/.env` | **gitignored — never commit or bundle** |
 

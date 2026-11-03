@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular/lazy';
 import { FormsModule } from '@angular/forms';
 import { AdminEventsPage } from './admin-events.page';
+import { NotificationBellComponent } from '../../components/notification-bell/notification-bell.component';
 
 import { AdminEventsPageRoutingModule } from './admin-events-routing.module';
 
@@ -12,6 +13,7 @@ import { AdminEventsPageRoutingModule } from './admin-events-routing.module';
     FormsModule,
     IonicModule,
     AdminEventsPageRoutingModule,
+    NotificationBellComponent,
   ],
   declarations: [AdminEventsPage],
 })

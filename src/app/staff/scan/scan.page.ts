@@ -4,7 +4,6 @@ import jsQR from 'jsqr';
 
 import { Booking, BookingService } from '../../services/booking.service';
 import { Concert, ConcertService } from '../../services/concert.service';
-import { NotificationService } from '../../services/notification.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { runRefresh } from '../../utils/refresher';
 
@@ -38,7 +37,6 @@ export class ScanPage {
     private toastCtrl: ToastController,
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
-    private notification: NotificationService,
     private sb: SupabaseService
   ) {}
 
@@ -194,11 +192,8 @@ export class ScanPage {
       const concert = this.concertOf(booking);
       const buyerEmail = booking.customerEmail;
       if (buyerEmail) {
-        this.notification.notifyAttendance(
-          buyerEmail,
-          booking.ticketCode,
-          concert?.name ?? 'the event'
-        );
+        // The "You're checked in" in-app/push notification is created by
+        // the checked_in trigger; this only sends the email.
         void this.sb.client.functions
           .invoke('send-ticket-email', {
             body: {

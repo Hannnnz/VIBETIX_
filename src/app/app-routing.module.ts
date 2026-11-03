@@ -54,6 +54,15 @@ const routes: Routes = [
         (m) => m.TicketDetailPageModule
       ),
   },
+  // Notification inbox (customers + admins; RLS keeps rows private).
+  {
+    path: 'notifications',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./notifications/notifications.module').then(
+        (m) => m.NotificationsPageModule
+      ),
+  },
   // Staff area with tab nav: Dashboard · Scan · Account. staff@gmail.com
   {
     path: 'staff',

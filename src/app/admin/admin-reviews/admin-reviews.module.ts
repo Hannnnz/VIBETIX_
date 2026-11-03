@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular/lazy';
 
 import { AdminReviewsPage } from './admin-reviews.page';
+import { NotificationBellComponent } from '../../components/notification-bell/notification-bell.component';
 import { AdminReviewsPageRoutingModule } from './admin-reviews-routing.module';
 
 @NgModule({
@@ -12,6 +13,7 @@ import { AdminReviewsPageRoutingModule } from './admin-reviews-routing.module';
     FormsModule,
     IonicModule,
     AdminReviewsPageRoutingModule,
+    NotificationBellComponent,
   ],
   declarations: [AdminReviewsPage],
 })

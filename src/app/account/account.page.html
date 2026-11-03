@@ -1,6 +1,7 @@
 <ion-header [translucent]="true" class="ion-no-border">
   <ion-toolbar>
     <ion-title>Profile</ion-title>
+    <app-notification-bell slot="end"></app-notification-bell>
   </ion-toolbar>
 </ion-header>
 
@@ -76,17 +77,31 @@
 
   <!-- Notifications -->
   <ion-list inset lines="full" class="info-list">
-    <p class="pm-title with-pad">Notifications ({{ notifications.length }})</p>
-    <ion-item *ngFor="let n of notifications.slice(0, 10)">
-      <ion-icon slot="start" [name]="n.type === 'attendance' ? 'checkmark-circle-outline' : 'ticket-outline'"></ion-icon>
+    <p class="pm-title with-pad">
+      Notifications ({{ unreadNotifications }} unread)
+    </p>
+    <ion-item button detail (click)="openNotifications()">
+      <ion-icon slot="start" name="notifications-outline"></ion-icon>
+      <ion-label>All notifications</ion-label>
+      <ion-note slot="end">{{ notifications.length }}</ion-note>
+    </ion-item>
+    <ion-item
+      button
+      *ngFor="let n of notifications.slice(0, 3)"
+      (click)="openNotifications()"
+    >
+      <ion-icon
+        slot="start"
+        [name]="n.type === 'checked_in' ? 'checkmark-circle-outline' : (n.type === 'event_reminder' ? 'alarm-outline' : 'ticket-outline')"
+      ></ion-icon>
       <ion-label>
         <h3>{{ n.title }}</h3>
-        <p>{{ n.message }}</p>
-        <p class="notif-time">{{ n.createdAt | date: 'short' }}</p>
+        <p>{{ n.body }}</p>
+        <p class="notif-time">{{ n.created_at | date: 'short' }}</p>
       </ion-label>
     </ion-item>
     <div class="pm-empty" *ngIf="notifications.length === 0">
-      <p>No notifications yet — your ticket confirmations and attendance messages will appear here.</p>
+      <p>No notifications yet — booking confirmations, check-ins and event reminders will appear here.</p>
     </div>
   </ion-list>
 

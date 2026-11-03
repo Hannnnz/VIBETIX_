@@ -2,9 +2,10 @@ import { Injectable, NgZone } from '@angular/core';
 import { Subject } from 'rxjs';
 
 import { AuthService, Session } from './auth.service';
+import { LocalReminderService } from './local-reminder.service';
 import { SupabaseService } from './supabase.service';
 
-export type BookingStatus = 'active' | 'checked-in';
+export type BookingStatus = 'active' | 'checked-in' | 'cancelled' | 'refunded';
 
 export interface Booking {
   id: string;
@@ -88,7 +89,8 @@ export class BookingService {
   constructor(
     private sb: SupabaseService,
     private auth: AuthService,
-    private zone: NgZone
+    private zone: NgZone,
+    private localReminders: LocalReminderService
   ) {
     // 🔴 Realtime: any booking change (new ticket, check-in) refreshes the cache.
     try {
@@ -210,7 +212,9 @@ export class BookingService {
         BookingService.checkedInIds.has(row.id) ||
         BookingService.checkedInCodes.has((row.ticket_code || '').trim().toUpperCase())
           ? 'checked-in'
-          : 'active',
+          : row.status === 'cancelled' || row.status === 'refunded'
+            ? (row.status as BookingStatus)
+            : 'active',
       createdAt: row.created_at,
     };
   }
@@ -479,6 +483,10 @@ export class BookingService {
       this.checkedInCount = this.bookings.filter(
         (b) => b.status === 'checked-in'
       ).length;
+      // Cancelled/refunded tickets must not fire their local reminder later.
+      this.bookings
+        .filter((b) => b.status === 'cancelled' || b.status === 'refunded')
+        .forEach((b) => void this.localReminders.cancelForBooking(b.id));
       this.changes$.next();
     });
   }

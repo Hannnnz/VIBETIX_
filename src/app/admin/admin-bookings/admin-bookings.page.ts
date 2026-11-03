@@ -1,4 +1,5 @@
 import { ChangeDetectorRef, Component } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { Booking, BookingService } from '../../services/booking.service';
@@ -20,10 +21,16 @@ export class AdminBookingsPage {
     private bookingService: BookingService,
     private concertService: ConcertService,
     private auth: AuthService,
+    private route: ActivatedRoute,
     private cdr: ChangeDetectorRef
   ) {}
 
   async ionViewWillEnter(): Promise<void> {
+    // Arriving from a "New booking" notification: focus that booking.
+    const q = this.route.snapshot.queryParamMap.get('q');
+    if (q) {
+      this.search = q;
+    }
     this.bookingSub?.unsubscribe();
     this.bookingSub = this.bookingService.changes$.subscribe(() => {
       this.cdr.detectChanges();

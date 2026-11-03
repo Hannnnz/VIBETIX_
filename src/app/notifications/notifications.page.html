@@ -1,0 +1,115 @@
+<ion-header [translucent]="true" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="backHref"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Notifications</ion-title>
+    <ion-buttons slot="end">
+      <ion-button
+        fill="clear"
+        size="small"
+        *ngIf="items.length > 0"
+        [disabled]="unread === 0"
+        (click)="markAll()"
+      >
+        Mark all read
+      </ion-button>
+      <ion-button
+        fill="clear"
+        color="danger"
+        *ngIf="items.length > 0"
+        (click)="clearAll()"
+        aria-label="Clear all notifications"
+      >
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content
+      pullingIcon="chevron-down"
+      pullingText="Pull down to refresh"
+      refreshingSpinner="crescent"
+      refreshingText="Refreshing"
+    ></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="state" *ngIf="loading && items.length === 0">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Loading notifications…</p>
+  </div>
+
+  <div class="state error" *ngIf="error && items.length === 0">
+    <ion-icon name="cloud-offline-outline"></ion-icon>
+    <p>{{ error }}</p>
+    <ion-button size="small" fill="outline" (click)="doRefreshRefreshOnly()">
+      Retry
+    </ion-button>
+  </div>
+
+  <div class="state empty" *ngIf="!loading && !error && items.length === 0">
+    <ion-icon name="notifications-off-outline"></ion-icon>
+    <h2>You're all caught up</h2>
+    <p>Booking confirmations, check-ins and event reminders will appear here.</p>
+    <ion-button size="small" fill="outline" (click)="openTickets()">
+      My tickets
+    </ion-button>
+  </div>
+
+  <ion-list class="notif-list" lines="none" *ngIf="items.length > 0">
+    <ion-item-sliding *ngFor="let n of items; trackBy: trackById">
+      <ion-item
+        button
+        class="notif-item"
+        [class.unread]="!n.read_at"
+        (click)="open(n)"
+      >
+        <div slot="start" class="type-icon" [ngClass]="n.type">
+          <ion-icon [name]="iconFor(n.type)" aria-hidden="true"></ion-icon>
+        </div>
+
+        <ion-label class="notif-copy">
+          <div class="notif-top">
+            <h3>{{ n.title }}</h3>
+            <span class="time">{{ relative(n.created_at) }}</span>
+          </div>
+          <p>{{ n.body }}</p>
+          <button
+            type="button"
+            class="review-link"
+            *ngIf="n.type === 'checked_in'"
+            (click)="leaveReview(n, $event)"
+          >
+            Leave a review
+          </button>
+        </ion-label>
+
+        <ion-button
+          slot="end"
+          fill="clear"
+          color="medium"
+          class="delete-btn"
+          [attr.aria-label]="'Delete ' + n.title"
+          (click)="remove(n, $event)"
+        >
+          <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
+
+      <ion-item-options side="end">
+        <ion-item-option color="danger" (click)="remove(n)">
+          Delete
+        </ion-item-option>
+      </ion-item-options>
+    </ion-item-sliding>
+  </ion-list>
+
+  <div class="inline-error" *ngIf="error && items.length > 0">
+    <ion-icon name="alert-circle-outline"></ion-icon>
+    <span>{{ error }}</span>
+    <button type="button" (click)="doRefreshRefreshOnly()">Retry</button>
+  </div>
+</ion-content>

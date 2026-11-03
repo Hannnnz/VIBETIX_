@@ -53,8 +53,9 @@ export class AccountPage implements OnInit {
       this.cdr.detectChanges();
     });
     await this.refreshMethods();
+    await this.notificationService.refresh().catch(() => undefined);
     this.zone.run(() => {
-      this.notifications = this.notificationService.list(this.session?.email ?? '');
+      this.notifications = this.notificationService.snapshot();
       this.cdr.detectChanges();
     });
 
@@ -113,6 +114,11 @@ export class AccountPage implements OnInit {
         this.paymentService.hydrate(email).then(() => {
           this.zone.run(() => (this.methods = this.paymentService.getMethods(email)));
         }),
+        this.notificationService.refresh().then(() => {
+          this.zone.run(
+            () => (this.notifications = this.notificationService.snapshot())
+          );
+        }),
       ];
       if (this.session?.role === 'admin') {
         jobs.push(
@@ -146,6 +152,14 @@ export class AccountPage implements OnInit {
 
   get staffJoined(): boolean {
     return this.auth.isStaffJoined();
+  }
+
+  get unreadNotifications(): number {
+    return this.notifications.filter((n) => !n.read_at).length;
+  }
+
+  openNotifications(): void {
+    this.router.navigateByUrl('/notifications');
   }
 
   manageMethods(): void {

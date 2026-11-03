@@ -1,5 +1,5 @@
 import { ChangeDetectorRef, Component, NgZone } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/lazy';
 import { Subscription } from 'rxjs';
 import { Booking, BookingService } from '../services/booking.service';
@@ -38,6 +38,7 @@ export class MyTicketsPage {
     private auth: AuthService,
     private reviewService: ReviewService,
     private router: Router,
+    private route: ActivatedRoute,
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
     private toastCtrl: ToastController
@@ -93,6 +94,7 @@ export class MyTicketsPage {
       this.now = Date.now();
       this.cdr.detectChanges();
     });
+    this.maybeOpenReviewFromQuery();
     this.now = Date.now();
     // Live DD:HH:MM:SS ticking for upcoming shows
     this.zone.runOutsideAngular(() => {
@@ -103,6 +105,18 @@ export class MyTicketsPage {
         });
       }, 1000);
     });
+  }
+
+  /** Opens the review sheet when arriving from a "Leave a review" notification. */
+  private maybeOpenReviewFromQuery(): void {
+    const ticketId = this.route.snapshot.queryParamMap.get('review');
+    if (!ticketId) {
+      return;
+    }
+    const booking = this.bookingService.getAll().find((b) => b.id === ticketId);
+    if (booking && this.canReview(booking)) {
+      this.openReview(booking);
+    }
   }
 
   private refreshBookingsList(email: string): void {

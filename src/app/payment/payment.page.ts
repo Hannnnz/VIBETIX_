@@ -11,7 +11,8 @@ import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 import { RecommendService } from '../services/recommend.service';
 import { PaymentService, SavedMethod, passesLuhn, onlyDigits, maskCardTail, MERCHANT } from '../services/payment.service';
-import { NotificationService } from '../services/notification.service';
+import { LocalReminderService } from '../services/local-reminder.service';
+import { eventDateTime } from '../utils/countdown';
 
 type OptionKey = string; // 'saved:<id>' | 'gcash' | 'qr' | 'play'
 
@@ -89,7 +90,7 @@ export class PaymentPage implements OnInit, OnDestroy {
     private paymentService: PaymentService,
     private recommend: RecommendService,
     private toastCtrl: ToastController,
-    private notification: NotificationService,
+    private localReminders: LocalReminderService,
     private sb: SupabaseService
   ) {
     // Failsafe: the method list must never be empty, even if the
@@ -605,44 +606,40 @@ export class PaymentPage implements OnInit, OnDestroy {
     // 🎟 strongest taste signal — future Explore order adapts.
     this.recommend.recordPurchase(this.concert);
     this.lastCode = booking.ticketCode;
-    // Notify the customer (in-app notification center + browser notification).
+    // In-app + push notifications are created by the database triggers.
+    // This only sends the confirmation email.
     const buyerEmail =
       booking.customerEmail || this.auth.getSession()?.email || '';
     if (buyerEmail && this.concert) {
-      this.notification.notifyPurchase(
-        buyerEmail,
-        booking.ticketCode,
-        this.concert.name,
-        booking.total
-      );
-      // Send a real confirmation email via the Resend-backed edge function.
-      if (buyerEmail && this.concert) {
-        void this.sb.client.functions
-          .invoke('send-ticket-email', {
-            body: {
-              type: 'purchase',
-              to: buyerEmail,
-              name: this.auth.getSession()?.name ?? '',
-              ticketCode: booking.ticketCode,
-              concertName: this.concert.name,
-              concertDate: this.concert.date,
-              venue: this.concert.venue,
-              tier: booking.tier,
-              seats: booking.seats,
-              total: booking.total,
-            },
-          })
-          .catch(() => undefined);
-      }
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try {
-          new Notification('VIBETIX ticket confirmed', {
-            body: `${this.concert.name} · ${booking.ticketCode}`,
-          });
-        } catch {
-          /* ignore */
-        }
-      }
+      void this.sb.client.functions
+        .invoke('send-ticket-email', {
+          body: {
+            type: 'purchase',
+            to: buyerEmail,
+            name: this.auth.getSession()?.name ?? '',
+            ticketCode: booking.ticketCode,
+            concertName: this.concert.name,
+            concertDate: this.concert.date,
+            venue: this.concert.venue,
+            tier: booking.tier,
+            seats: booking.seats,
+            total: booking.total,
+          },
+        })
+        .catch(() => undefined);
+    }
+
+    // Offline backup for the server reminder: schedule 24h before the show.
+    // Skipped on the web and when a server event_reminder already exists.
+    if (this.concert) {
+      void this.localReminders.scheduleForBooking({
+        bookingId: booking.id,
+        eventId: this.concert.id,
+        eventName: this.concert.name,
+        venue: this.concert.venue,
+        ticketCode: booking.ticketCode,
+        startsAt: eventDateTime(this.concert),
+      });
     }
     // Refresh the booking cache so the new ticket is available immediately.
     void this.bookingService.hydrate().catch(() => undefined);

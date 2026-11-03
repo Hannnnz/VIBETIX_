@@ -4,6 +4,7 @@ import { PluginListenerHandle } from '@capacitor/core';
 import { Subscription } from 'rxjs';
 
 import { AuthService } from './services/auth.service';
+import { PushService } from './services/push.service';
 import { SessionDataService } from './services/session-data.service';
 
 @Component({
@@ -18,10 +19,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private auth: AuthService,
-    private data: SessionDataService
+    private data: SessionDataService,
+    private push: PushService
   ) {}
 
   ngOnInit(): void {
+    // Android push registration / tap handling (no-op in the browser).
+    this.push.start();
+
     // Login / session restore / token refresh → preload the signed-in data.
     // Screens then paint from a warm cache instead of waiting for a manual
     // pull-to-refresh.
