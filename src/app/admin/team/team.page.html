@@ -41,7 +41,7 @@
     <div class="cred-card card-lg" *ngIf="newCredentials">
       <div class="cred-head">
         <ion-icon name="checkmark-circle-outline"></ion-icon>
-        <strong>Staff account created</strong>
+        <strong>{{ credentialsTitle }}</strong>
       </div>
       <p class="fine">Give these credentials to your staff member — shown only once:</p>
       <div class="cred-line"><span>Email</span><strong>{{ newCredentials.email }}</strong></div>
@@ -59,6 +59,9 @@
       </div>
       <span class="joined-chip" *ngIf="s.joined">Joined</span>
       <span class="pending-chip" *ngIf="!s.joined">Pending</span>
+      <ion-button fill="clear" size="small" (click)="resetPassword(s)" aria-label="Reset password">
+        <ion-icon slot="icon-only" name="key-outline"></ion-icon>
+      </ion-button>
       <ion-button fill="clear" size="small" color="danger" (click)="removeStaff(s)">
         <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
       </ion-button>

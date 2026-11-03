@@ -89,6 +89,7 @@ Deno.serve(async (req: Request) => {
         full_name: String(name).trim(),
         role: 'staff',
         joined: true,
+        must_change_password: true,
       });
 
     return json({ email: created.user.email, password });

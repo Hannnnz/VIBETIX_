@@ -83,6 +83,14 @@ const routes: Routes = [
     pathMatch: 'full',
   },
   {
+    path: 'change-password',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./change-password/change-password.module').then(
+        (m) => m.ChangePasswordPageModule
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'splash',
   },

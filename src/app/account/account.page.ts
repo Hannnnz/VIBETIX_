@@ -174,6 +174,10 @@ export class AccountPage implements OnInit {
     this.router.navigate(['/staff/join']);
   }
 
+  changePassword(): void {
+    this.router.navigate(['/change-password']);
+  }
+
   manageTeam(): void {
     this.router.navigate(['/admin/team']);
   }

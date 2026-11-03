@@ -20,8 +20,9 @@ export class TeamPage implements OnInit {
   addName = '';
   addEmail = '';
 
-  /** Shown once after creating the account — never displayed again. */
+  /** Shown once after creating/resetting the account — never displayed again. */
   newCredentials: { email: string; password: string } | null = null;
+  credentialsTitle = 'Staff account created';
 
   constructor(
     private auth: AuthService,
@@ -128,12 +129,45 @@ export class TeamPage implements OnInit {
       );
       return;
     }
+    this.credentialsTitle = 'Staff account created';
     this.newCredentials = created;
     this.adding = false;
     this.addName = '';
     this.addEmail = '';
     void this.refresh();
     this.toast('Staff account created.');
+  }
+
+  async resetPassword(member: AppUser): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Reset password',
+      message: `Reset password for ${member.name}? Their old password will stop working.`,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Reset',
+          handler: () => {
+            void (async () => {
+              this.busy = true;
+              const result = await this.auth.resetStaffPassword(member.id);
+              this.busy = false;
+              this.cdr.detectChanges();
+              if (!result) {
+                this.toast(
+                  this.auth.lastResetStaffError || 'Could not reset the password.'
+                );
+                return;
+              }
+              this.credentialsTitle = 'Password reset';
+              this.newCredentials = result;
+              this.cdr.detectChanges();
+              this.toast('Password reset.');
+            })();
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   async removeStaff(member: AppUser): Promise<void> {
@@ -159,7 +193,9 @@ export class TeamPage implements OnInit {
   }
 
   doneWithCredentials(): void {
+    // Clear the temporary password from memory.
     this.newCredentials = null;
+    this.credentialsTitle = 'Staff account created';
   }
 
   back(): void {

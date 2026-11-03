@@ -22,6 +22,7 @@ export interface Session {
   email: string;
   name: string;
   role: Role;
+  mustChangePassword: boolean;
 }
 
 interface ProfileRow {
@@ -30,6 +31,7 @@ interface ProfileRow {
   full_name: string;
   role: Role;
   joined: boolean;
+  must_change_password: boolean;
 }
 
 /**
@@ -120,7 +122,12 @@ export class AuthService {
   private applyProfile(row: ProfileRow | null): void {
     this.profile = row;
     this.current = row
-      ? { email: row.email, name: row.full_name, role: row.role }
+      ? {
+          email: row.email,
+          name: row.full_name,
+          role: row.role,
+          mustChangePassword: !!row.must_change_password,
+        }
       : null;
     if (row && this.rememberMe) {
       this.rememberedEmail = row.email;
@@ -135,7 +142,7 @@ export class AuthService {
   private async doCacheFrom(userId: string): Promise<void> {
     const { data, error } = await this.client
       .from('profiles')
-      .select('id, email, full_name, role, joined')
+      .select('id, email, full_name, role, joined, must_change_password')
       .eq('id', userId)
       .single();
     if (!error && data) {
@@ -455,6 +462,70 @@ export class AuthService {
     if (error) {
       console.error('removeStaff insert failed', error);
     }
+  }
+
+  /** Last error from resetStaffPassword, for the UI to surface. */
+  lastResetStaffError = '';
+
+  /** Admin resets a staff member's password via edge function. */
+  async resetStaffPassword(
+    staffId: string
+  ): Promise<{ email: string; password: string } | null> {
+    this.lastResetStaffError = '';
+    const { data, error } = await this.client.functions.invoke(
+      'reset-staff-password',
+      { body: { staff_id: staffId } }
+    );
+
+    if (error) {
+      this.lastResetStaffError = await this.parseFunctionError(error);
+      return null;
+    }
+    if (!data) {
+      this.lastResetStaffError = 'No response from the reset-staff-password function.';
+      return null;
+    }
+    const payload = data as {
+      email?: string;
+      password?: string;
+      error?: string;
+    };
+    if (payload.error) {
+      this.lastResetStaffError = payload.error;
+      return null;
+    }
+    if (!payload.email || !payload.password) {
+      this.lastResetStaffError = 'Invalid response from reset-staff-password.';
+      return null;
+    }
+    return { email: payload.email, password: payload.password };
+  }
+
+  /** Staff changes their own password; clears the must_change_password flag. */
+  async changePassword(newPassword: string): Promise<boolean> {
+    const { error } = await this.client.auth.updateUser({ password: newPassword });
+    if (error) {
+      return false;
+    }
+    const uid = this.profile?.id;
+    if (uid) {
+      await this.client
+        .from('profiles')
+        .update({ must_change_password: false })
+        .eq('id', uid);
+    }
+    if (this.current) {
+      this.current = { ...this.current, mustChangePassword: false };
+      this.zone.run(() => this.changes$.next(this.current));
+    }
+    if (this.profile) {
+      this.profile = { ...this.profile, must_change_password: false };
+    }
+    return true;
+  }
+
+  get mustChangePassword(): boolean {
+    return !!this.current?.mustChangePassword;
   }
 
   /** Landing route right after a successful login. */
